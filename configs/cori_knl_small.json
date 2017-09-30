@@ -1,0 +1,32 @@
+{
+    "input_shape": [3, 64, 64],
+    "inputpath": "/project/projectdirs/mpccc/tkurth/DataScience/atlas_dl/data/64x64",
+    "outputpath": "/project/projectdirs/mpccc/tkurth/DataScience/atlas_dl/output/64x64",
+    "arch" : "hsw",
+    "mode": "sync",
+    "num_hot_spares": 0,
+    "display_interval": 10,
+    "save_interval": 1,
+    "learning_rate": 0.00001,
+    "dropout_p": 0.5,
+    "weight_decay": 0,
+    "num_fc_units": 512,
+    "num_layers": 3,
+    "momentum": 0.9,
+    "num_epochs": 200,
+    "train_batch_size": 32,
+    "validation_batch_size": 32,
+    "batch_norm": false,
+    "scaling_improvements": false,
+    "time": true,
+    "create_summary": false,
+    "restart": false,
+    "conv_params": { 
+        "data_format": "NCHW", 
+        "num_filters": 128, 
+        "filter_size": 3,
+        "padding": "SAME",
+        "activation": "ReLU",
+        "initializer": "HE"
+    }
+}
