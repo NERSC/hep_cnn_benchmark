@@ -1,6 +1,6 @@
 {
     "input_shape": [3, 224, 224],
-    "inputpath": "/project/projectdirs/mpccc/tkurth/DataScience/atlas_dl/data/224x224",
+    "inputpath": "/project/projectdirs/dasrepo/atlas_rpv_susy/benchmark_data/224x224",
     "outputpath": "/project/projectdirs/mpccc/tkurth/DataScience/atlas_dl/output/224x224",
     "arch" : "knl",
     "mode": "sync",
