@@ -43,7 +43,7 @@
 #set up python stuff
 module load python
 source activate thorstendl-devel
-export PYTHONPATH=/cori_knl_small.json/usr/common/software/tensorflow/intel-tensorflow/head/lib/python2.7/site-packages
+export PYTHONPATH=/usr/common/software/tensorflow/intel-tensorflow/head/lib/python2.7/site-packages
 
 #run
 cd ../scripts/
