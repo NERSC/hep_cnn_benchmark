@@ -27,7 +27,8 @@ Other channels could be used and other image sizes at well but that is up to the
 
 In our test, we generated particle events which can be fully described by standard model physics and particle events which contain new physics, in our case R-parity violating Supersymmetry (check [this link](https://link.springer.com/article/10.1007/BF02908093) for a review). However, the user is feel to generate his own data with different event types. The model can also be easily expanded to perform a multi-class classification or even include a regression on model parameters. 
 
-For NERSC users, we can give access to the our dataset on request. For users who want to generate their own data, this is the data format which is expected by the data iterator specified in ```networks/binary_classifier_tf.ipynb```. The users are free to edit this file or stick to our convention which is:
+For NERSC users, we can give access to the our dataset on request. Please send an email to (consult@nersc.gov) and ask for acces to the HEP TensorFlow CNN benchmark data.
+For users who want to generate their own data, this is the data format which is expected by the data iterator specified in ```networks/binary_classifier_tf.ipynb```. The users are free to edit this file or stick to our convention which is:
 
 ```
 h5ls <trainfile-name>.h5 
