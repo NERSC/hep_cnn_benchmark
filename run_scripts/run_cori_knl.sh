@@ -54,4 +54,4 @@ else
     NUM_PS=0
 fi
 
-python hep_classifier_tf_train.py --config=../configs/cori_knl_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
+srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u python hep_classifier_tf_train.py --config=../configs/cori_knl_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
