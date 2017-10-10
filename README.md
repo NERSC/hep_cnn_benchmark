@@ -1,4 +1,4 @@
-# atlas_dl_benchmark
+# High Energy Physics Deep Learning Convolutional Neural Network Benchmark
 TensorFlow Benchmark for the HEP Deep Learning Model used in arXiv:1708.05256 which uses 224x224x3 images and a smaller variant using 64x64x3 images.
 
 ## Code Structure
