@@ -46,3 +46,5 @@ We will give a short decription of the data here:
 ```normweight```: normalized weight. Each sample is weighted by that weight given here. Currently overridden and set to 1, but can be changed. The normalization should be done over the training set.
 ```weight```: unnormalized weight. That field can be used to compute more sophisticated performance metrics to account for highly skewed data sets.
 
+## Dummy data
+The benchmark can be run with dummy data only. For that purpose, just append ```--dummy_data``` to the command line arguments of the main python script. The loss is meaningless as random data will be generated for the training process but this mode can be used to perform IO insensitive scaling tests.
