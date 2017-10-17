@@ -27,7 +27,7 @@ export PYTHONPATH=/usr/common/software/tensorflow/intel-tensorflow/head/lib/pyth
 #run
 cd ../scripts/
 
-if [ $SLURM_NNODES -gt 2 ]; then
+if [ $SLURM_NNODES -ge 2 ]; then
     NUM_PS=1
 else
     NUM_PS=0
