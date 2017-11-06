@@ -27,10 +27,15 @@ export PYTHONPATH=/usr/common/software/tensorflow/intel-tensorflow/head/lib/pyth
 #run
 cd ../scripts/
 
-if [ $SLURM_NNODES -ge 2 ]; then
-    NUM_PS=1
+NUM_PS=0
+if [ ! -z ${SLURM_NNODES} ]; then
+    if [ ${SLURM_NNODES} -ge 2 ]; then
+	NUM_PS=1
+    fi
+    runcommand="srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 64 -u"
 else
-    NUM_PS=0
+    SLURM_NNODES=1
+    runcommand=""
 fi
 
-srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 64 -u python hep_classifier_tf_train.py --config=../configs/cori_haswell_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
+${runcommand} python hep_classifier_tf_train.py --config=../configs/cori_haswell_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
