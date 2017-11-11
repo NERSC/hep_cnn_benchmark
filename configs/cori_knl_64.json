@@ -2,6 +2,7 @@
     "input_shape": [3, 64, 64],
     "inputpath": "/project/projectdirs/dasrepo/atlas_rpv_susy/benchmark_data/64x64",
     "outputpath": "/project/projectdirs/mpccc/tkurth/DataScience/atlas_dl/output/64x64",
+    "trainsamples": 726016,
     "arch" : "knl",
     "mode": "sync",
     "num_hot_spares": 0,

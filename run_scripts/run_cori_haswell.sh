@@ -22,7 +22,10 @@
 #set up python stuff
 module load python
 source activate thorstendl-devel
-export PYTHONPATH=/usr/common/software/tensorflow/intel-tensorflow/head/lib/python2.7/site-packages
+#export PYTHONPATH=/usr/common/software/tensorflow/intel-tensorflow/head/lib/python2.7/site-packages
+export PYTHONPATH=/global/homes/t/tkurth/python/tfzoo/tensorflow_mkl_hdf5_mpi_cw
+module load advisor/2018.up1
+module load gcc/6.3.0
 
 #run
 cd ../scripts/
@@ -38,4 +41,10 @@ else
     runcommand=""
 fi
 
-${runcommand} python hep_classifier_tf_train.py --config=../configs/cori_haswell_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
+advcommand_survey="advixe-cl --collect survey -profile-python --project-dir ./hep_cnn_advixe --"
+#advcommand_trips="advixe-cl --collect tripcounts -flop -profile-python --project-dir ./hep_cnn_advixe --" 
+
+rm -r hep_cnn_advixe
+${runcommand} ${advcommand_survey} ./hep_classifier_tf_train.py --config=../configs/cori_haswell_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
+#${runcommand} ${advcommand_trips} ./hep_classifier_tf_train.py --config=../configs/cori_haswell_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
+
