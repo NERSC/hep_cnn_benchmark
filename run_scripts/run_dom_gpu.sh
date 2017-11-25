@@ -1,9 +1,14 @@
 #!/bin/bash
-#SBATCH -p regular
-#SBATCH -A nstaff
-#SBATCH -C haswell
-#SBATCH -t 1:00:00
-#SBATCH -J hep_train_tf
+#SBATCH --job-name=hep_cnn_train
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=tkurth@lbl.com
+#SBATCH --time=01:00:00
+#SBATCH --ntasks-per-core=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=12
+#SBATCH --partition=normal
+#SBATCH --constraint=gpu
+
 
 
 #*** License Agreement ***
@@ -19,32 +24,18 @@
 #---------------------------------------------------------------
 
 
-#set up python stuff
-module load python
-source activate thorstendl-devel
-#export PYTHONPATH=/usr/common/software/tensorflow/intel-tensorflow/head/lib/python2.7/site-packages
-export PYTHONPATH=/global/homes/t/tkurth/python/tfzoo/tensorflow_mkl_hdf5_mpi_cw
-module load advisor/2018.up1
-module load gcc/6.3.0
+#set up environment
+source /scratch/snx1600tds/tkurth/src/tensorflow/env_tensorflow.sh
+export PYTHONPATH=/users/tkurth/python/tfzoo/tensorflow:${PYTHONPATH}
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
 
 #run
 cd ../scripts/
 
-NUM_PS=0
-if [ ! -z ${SLURM_NNODES} ]; then
-    if [ ${SLURM_NNODES} -ge 2 ]; then
-	NUM_PS=1
-    fi
-    runcommand="srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 64 -u"
+if [ $SLURM_NNODES -ge 2 ]; then
+    NUM_PS=1
 else
-    SLURM_NNODES=1
-    runcommand=""
+    NUM_PS=0
 fi
 
-advcommand_survey="advixe-cl --collect survey -profile-python --project-dir ./hep_cnn_advixe --"
-#advcommand_trips="advixe-cl --collect tripcounts -flop -profile-python --project-dir ./hep_cnn_advixe --" 
-
-rm -r hep_cnn_advixe
-${runcommand} ${advcommand_survey} ./hep_classifier_tf_train.py --config=../configs/cori_haswell_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
-#${runcommand} ${advcommand_trips} ./hep_classifier_tf_train.py --config=../configs/cori_haswell_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
-
+srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} --cpu_bind=rank -u python hep_classifier_tf_train.py --config=../configs/dom_gpu_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS} --dummy_data

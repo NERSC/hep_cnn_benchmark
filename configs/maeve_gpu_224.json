@@ -2,6 +2,7 @@
     "input_shape": [224, 224, 3],
     "inputpath": "/data1/tkurth/hep_data/224x224",
     "outputpath": "/data1/tkurth/hep_data/model_output_224",
+    "trainsamples": 726016,
     "arch" : "gpu",
     "mode": "sync",
     "num_hot_spares": 0,
