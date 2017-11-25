@@ -1,0 +1,33 @@
+{
+    "input_shape": [3, 224, 224],
+    "inputpath": "/scratch/snx1600tds/tkurth/data/rpv_susy_benchmark_data/224x224",
+    "outputpath": "/scratch/snx1600tds/tkurth/run/hep_cnn_benchmark/output/224x224",
+    "trainsamples": 726016,
+    "arch" : "gpu",
+    "mode": "sync",
+    "num_hot_spares": 0,
+    "display_interval": 10,
+    "save_interval": 1,
+    "learning_rate": 1e-3,
+    "dropout_p": 0.5,
+    "weight_decay": 1e-2,
+    "num_layers": 4,
+    "momentum": 0.9,
+    "num_epochs": 200,
+    "train_batch_size": 128,
+    "validation_batch_size": 128,
+    "batch_size_per_node": true,
+    "batch_norm": false,
+    "scaling_improvements": true,
+    "time": true,
+    "create_summary": false,
+    "restart": false,
+    "conv_params": { 
+        "data_format": "NCHW", 
+        "num_filters": 128, 
+        "filter_size": 3,
+        "padding": "SAME",
+        "activation": "ReLU",
+        "initializer": "HE"
+    }
+}
