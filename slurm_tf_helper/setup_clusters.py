@@ -30,34 +30,55 @@ import sys
 import os
 
 
-def setup_slurm_cluster(num_ps=1):
+#def setup_slurm_cluster(num_ps=1):
+def setup_slurm_cluster(num_ws=-1, num_ps=1):
+    print("Slurm module: ", num_ps, num_ws );
     all_nodes = get_all_nodes()
 
     port = get_allowed_port()
     
     hostlist = [ ("%s:%i" % (node, port)) for node in all_nodes ] 
-    ps_hosts, worker_hosts = get_parameter_server_and_worker_hosts(hostlist, num_ps=num_ps)
+    if num_ws == -1 : 
+      num_ws = len(hostlist) - num_ps
+    #ps_hosts, worker_hosts = get_parameter_server_and_worker_hosts(hostlist, num_ps=num_ps)
+    ps_hosts, worker_hosts = get_parameter_server_and_worker_hosts(hostlist, num_ws, num_ps)
 
 
     proc_id, num_procs = get_slurm_proc_variables()
     
-    num_tasks = num_procs - num_ps
+    #num_tasks = num_procs - num_ps
     
-    job_name = get_job_name(proc_id, num_ps)
+    #job_name = get_job_name(proc_id, num_ps)
+    #task_index = get_task_index(proc_id, job_name, num_ps)
     
-    task_index = get_task_index(proc_id, job_name, num_ps)
+    job_name = get_job_name(proc_id,num_ws, num_ps)
+    
+    task_id = get_task_id(proc_id, job_name, num_ps)
+    print("SLURM Module: ", task_id, job_name, ps_hosts, worker_hosts)   
+
+    if job_name == "waitJob":
+      print("waitJob returning.")
+      sys.stdout.flush()
+      return 0, 0, task_id, num_ps, num_ws, job_name 
     
     cluster_spec = make_cluster_spec(worker_hosts, ps_hosts)
 
-    server = make_server(cluster_spec, job_name, task_index)
+    #server = make_server(cluster_spec, job_name, task_index)
+    server = make_server(cluster_spec, job_name, task_id)
     
-    return cluster_spec, server, task_index, num_tasks, job_name
+    num_ws = len(worker_hosts)
+    num_ps = len(ps_hosts)
+    num_tasks = num_ps + num_ws 
+    print("SLURM Module: ", task_id, num_tasks, num_ps, num_ws, job_name, ps_hosts, worker_hosts)  
+    return cluster_spec, server, task_id, num_ps, num_ws, job_name
+    
+    #return cluster_spec, server, task_index, num_tasks, job_name
     
 
-def make_server(cluster_spec, job_name, task_index):
+def make_server(cluster_spec, job_name, task_id):#task_index):
     server = tf.train.Server(cluster_spec,
                            job_name=job_name,
-                           task_index=task_index)
+                           task_index=task_id)#task_index=task_index)
     return server
     
     
@@ -69,34 +90,49 @@ def make_cluster_spec(worker_hosts, ps_hosts):
     return cluster_spec
     
     
-def get_task_index(proc_id, job_name, num_ps):
+def get_task_id(proc_id, job_name, num_ps):#get_task_index(proc_id, job_name, num_ps):
     
     if job_name == "ps":
-        task_index = proc_id
+        task_id = proc_id#task_index = proc_id
     elif job_name == "worker":
-        #expects a task_index for workers that starts at 0
-        task_index = proc_id - num_ps
-    return task_index
+        #expects a task_id for workers that starts at 0
+        #task_index = proc_id - num_ps
+        task_id = proc_id - num_ps
+    else:
+        task_id = -1
+    return task_id
+    #return task_index
     
     
 def get_slurm_proc_variables():
     proc_id  = int( os.environ['SLURM_PROCID'] )
-    num_procs     = int( os.environ['SLURM_NPROCS'] )
+    num_procs     = num_procs     = int( os.environ['SLURM_NNODES'] )#int( os.environ['SLURM_NPROCS'] )
     return proc_id, num_procs
     
-def get_job_name(proc_id, num_ps):
+def get_job_name(proc_id, num_ws, num_ps):#(proc_id, num_ps):
     if proc_id < num_ps:
         job_name = "ps"
-    else:
+    elif proc_id < num_ps + num_ws:
         job_name = "worker"
+    else:
+        job_name="waitJob"
+    #else:
+    #    job_name = "worker"
     return job_name
     
     
-def get_parameter_server_and_worker_hosts(hostlist, num_ps=1):
+def get_parameter_server_and_worker_hosts(hostlist, num_ws=-1, num_ps=1):#(hostlist, num_ps=1):
     """assumes num_ps nodes used for parameter server (one ps per node)
     and rest of nodes used for workers"""
+    
+    if (num_ws != -1) and (num_ws + num_ps > len(hostlist) ):
+      sys.exit("Number of total nodes demanded are lesser than ", num_ps, num_ws )
+    
     ps_hosts = hostlist[:num_ps]
-    worker_hosts = hostlist[num_ps:]
+    if (num_ws != -1) and (num_ws + num_ps <= len(hostlist) ):
+      worker_hosts = hostlist[num_ps:num_ps+num_ws]
+    else:
+      worker_hosts = hostlist[num_ps:]
     return ps_hosts, worker_hosts
     
 def get_allowed_port():
@@ -110,7 +146,7 @@ def get_all_nodes():
     
 
 def expand_nodelist(node_string):
-    if '[' in node_string:
+    #if '[' in node_string:
         pref, suff  = node_string.split('[')
 
         suff = suff. split(']')[0].split(',')
@@ -124,10 +160,11 @@ def expand_nodelist(node_string):
             for id in range(int(beg),int(end) + 1):
                 j= "%s%0" + str(num_len) + "d"
                 nodes.append(j % (pref, id))
-    else:
-        nodes=[node_string]
+    #else:
+    #    nodes=[node_string]
 
     return nodes
 
 if __name__ == "__main__":
-    cluster, server, task_index, num_tasks, job_name = setup_slurm_cluster(num_ps=1)
+    #cluster, server, task_index, num_tasks, job_name = setup_slurm_cluster(num_ps=1)
+    cluster, server, task_id, num_tasks, job_name = setup_slurm_cluster(num_ws=2,num_ps=2)
