@@ -147,19 +147,19 @@ def get_all_nodes():
 
 def expand_nodelist(node_string):
     #if '[' in node_string:
-        pref, suff  = node_string.split('[')
+    pref, suff  = node_string.split('[')
 
-        suff = suff. split(']')[0].split(',')
-        nodes =[]
-        for s in suff:
-            if '-' not in s:
-                nodes.append("%s%s" % (pref, s))
-                continue
-            beg,end = s.split('-')
-            num_len=len(beg)
-            for id in range(int(beg),int(end) + 1):
-                j= "%s%0" + str(num_len) + "d"
-                nodes.append(j % (pref, id))
+    suff = suff. split(']')[0].split(',')
+    nodes =[]
+    for s in suff:
+        if '-' not in s:
+            nodes.append("%s%s" % (pref, s))
+            continue
+        beg,end = s.split('-')
+        num_len=len(beg)
+        for id in range(int(beg),int(end) + 1):
+            j= "%s%0" + str(num_len) + "d"
+            nodes.append(j % (pref, id))
     #else:
     #    nodes=[node_string]
 
