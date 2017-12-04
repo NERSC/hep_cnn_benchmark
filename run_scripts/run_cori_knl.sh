@@ -33,4 +33,4 @@ else
     NUM_PS=0
 fi
 
-srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u python hep_classifier_tf_train.py --config=../configs/cori_knl_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
+srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u python hep_classifier_tf_train.py --config=../configs/cori_knl_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS} > hep_224x224_knl_w${SLURM_NNODES}_p$(( ${SLURM_NNODES} - ${NUM_PS} )).out 2>&1
