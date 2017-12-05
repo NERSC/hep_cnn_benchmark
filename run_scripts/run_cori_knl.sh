@@ -18,7 +18,6 @@
 #You are under no obligation whatsoever to provide any bug fixes, patches, or upgrades to the features, functionality or performance of the source code ("Enhancements") to anyone; however, if you choose to make your Enhancements available either publicly, or directly to Lawrence Berkeley National Laboratory, without imposing a separate written license agreement for such Enhancements, then you hereby grant the following license: a  non-exclusive, royalty-free perpetual license to install, use, modify, prepare derivative works, incorporate into other computer software, distribute, and sublicense such enhancements or derivative works thereof, in binary and source code form.
 #---------------------------------------------------------------
 
-
 #set up python stuff
 module load python
 source activate thorstendl-devel
@@ -29,6 +28,21 @@ cd ../scripts/
 
 if [ $SLURM_NNODES -ge 2 ]; then
     NUM_PS=1
+
+    #check if user specified more PS
+    while getopts p: option
+    do
+	case "${option}"
+	in
+	p) NUM_PS=${OPTARG};;
+	esac
+    done
+
+    if [ ${NUM_PS} -ge ${SLURM_NNODES} ]; then
+	echo "The number of nodes has to be bigger than the number of parameters servers"
+	exit
+    fi
+
 else
     NUM_PS=0
 fi
