@@ -1,5 +1,5 @@
 {
-    "input_shape": [3, 224, 224],
+    "input_shape": [224, 224, 3],
     "inputpath": "/project/projectdirs/dasrepo/atlas_rpv_susy/benchmark_data/224x224",
     "outputpath": "/project/projectdirs/mpccc/tkurth/DataScience/atlas_dl/output/224x224",
     "trainsamples": 726016,
@@ -8,8 +8,11 @@
     "num_hot_spares": 0,
     "display_interval": 10,
     "save_interval": 1,
-    "learning_rate": 1e-3,
+    "learning_rate": 1e-2,
     "dropout_p": 0.5,
+    "optimizer": "KFAC",
+    "cov_ema_decay": 0.8,
+    "damping": 0.01,
     "weight_decay": 1e-2,
     "num_layers": 4,
     "momentum": 0.9,
@@ -23,7 +26,7 @@
     "create_summary": false,
     "restart": false,
     "conv_params": { 
-        "data_format": "NCHW", 
+        "data_format": "NHWC", 
         "num_filters": 128, 
         "filter_size": 3,
         "padding": "SAME",
