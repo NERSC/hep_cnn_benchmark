@@ -38,7 +38,6 @@ def setup_slurm_cluster(num_ps=1):
     hostlist = [ ("%s:%i" % (node, port)) for node in all_nodes ] 
     ps_hosts, worker_hosts = get_parameter_server_and_worker_hosts(hostlist, num_ps=num_ps)
 
-
     proc_id, num_procs = get_slurm_proc_variables()
     
     num_tasks = num_procs - num_ps
@@ -62,10 +61,13 @@ def make_server(cluster_spec, job_name, task_index):
     
     
 def make_cluster_spec(worker_hosts, ps_hosts):
-    cluster_spec = tf.train.ClusterSpec({
-    "worker": worker_hosts,
-    "ps": ps_hosts
-    })
+    if ps_hosts:
+        cluster_spec = tf.train.ClusterSpec({
+            "worker": worker_hosts,
+            "ps": ps_hosts})
+    else:
+         cluster_spec = tf.train.ClusterSpec({
+            "worker": worker_hosts})
     return cluster_spec
     
     

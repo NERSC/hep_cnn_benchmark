@@ -1,7 +1,7 @@
 {
     "input_shape": [224, 224, 3],
     "inputpath": "/project/projectdirs/dasrepo/atlas_rpv_susy/benchmark_data/224x224",
-    "outputpath": "/project/projectdirs/mpccc/tkurth/DataScience/atlas_dl/output/224x224",
+    "outputpath": "/project/projectdirs/mpccc/tkurth/DataScience/atlas_dl/output/224x224/kfac",
     "trainsamples": 726016,
     "arch" : "knl",
     "mode": "async",
