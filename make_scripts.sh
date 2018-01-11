@@ -28,3 +28,6 @@ cp networks/binary_classifier_tf.py scripts/networks/
 jupyter-nbconvert --to=python hep_classifier_tf_train.ipynb
 mv hep_classifier_tf_train.py scripts/
 
+#convert horovod version
+jupyter-nbconvert --to=python hep_classifier_tf_train_horovod.ipynb
+mv hep_classifier_tf_train_horovod.py scripts/

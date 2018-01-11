@@ -19,6 +19,7 @@
 #---------------------------------------------------------------
 
 #set up python stuff
+module load python
 source activate thorstendl-horovod
 module load gcc/6.3.0
 
