@@ -19,11 +19,26 @@
 #---------------------------------------------------------------
 
 #set up python stuff
-module load tensorflow/intel-head
-module load craype-ml-plugin-py2/1.0.1
+module load python
+source activate thorstendl-horovod-mlsl
+module load gcc/6.3.0
+
+#load mlsl
+source ${HOME}/lib/mlsl/intel64/bin/mlslvars.sh
+
+#add this to library path:
+modulebase=$(dirname $(module show tensorflow/intel-head 2>&1 | grep PATH |awk '{print $3}'))
+export PYTHONPATH=$(pwd)/../networks:${modulebase}/lib/python2.7/site-packages:${PYTHONPATH}
+
+#important, otherwise crash because MPI_Comm_Spawn is not available
+export MLSL_NUM_SERVERS=0
+
+#better binding
+#bindstring="numactl -C 1-67,69-135,137-203,205-271"
+bindstring=""
 
 #run
 cd ../scripts/
 
 #launch srun
-srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u python hep_classifier_tf_train.py --config=../configs/cori_knl_224_adam.json --num_tasks=${SLURM_NNODES} --num_ps=0 #> hep_224x224_knl_w$(( ${SLURM_NNODES} - ${NUM_PS} ))_p${NUM_PS}.out 2>&1
+srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u ${bindstring} python hep_classifier_tf_train_horovod.py --config=../configs/cori_knl_224_adam.json --num_tasks=${SLURM_NNODES} > hep_224x224_knl-horovod-mlsl_w$(( ${SLURM_NNODES} ))_p0.out 2>&1

@@ -31,3 +31,7 @@ mv hep_classifier_tf_train.py scripts/
 #convert horovod version
 jupyter-nbconvert --to=python hep_classifier_tf_train_horovod.ipynb
 mv hep_classifier_tf_train_horovod.py scripts/
+
+#convert craype-ml version
+jupyter-nbconvert --to=python hep_classifier_tf_train_craype-ml.ipynb
+mv hep_classifier_tf_train_craype-ml.py scripts/
