@@ -23,6 +23,7 @@ module load PrgEnv-gnu
 module load gcc/5.3.0
 module load cudatoolkit/8.0.61_2.4.3-6.0.4.0_3.1__gb475d12
 source activate tensorflow
+module load /scratch/snx3000/pjm/tmp_inst/modulefiles/craype-ml-plugin-py2/1.1.0
 
 #openmp stuff
 export OMP_NUM_THREADS=12
@@ -34,4 +35,4 @@ export MPICH_RDMA_ENABLED_CUDA=1
 #run
 cd ../scripts/
 
-srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} --cpu_bind=rank -u python hep_classifier_tf_train_horovod.py --config=../configs/daint_gpu_224.json --num_tasks=${SLURM_NNODES} > hep_224x224_p100-horovod-mpi_w$(( ${SLURM_NNODES} ))_p0.out 2>&1
+srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} --cpu_bind=rank -u python hep_classifier_tf_train_craype-ml.py --config=../configs/daint_gpu_224.json --num_tasks=${SLURM_NNODES} > hep_224x224_p100-craype-ml_w$(( ${SLURM_NNODES} ))_p0.out 2>&1
