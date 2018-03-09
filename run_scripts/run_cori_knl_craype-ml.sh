@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -q regular
+#SBATCH -q premium
 #SBATCH -A nstaff
 #SBATCH -C knl,quad,cache
 #SBATCH -t 1:00:00
@@ -19,7 +19,7 @@
 #---------------------------------------------------------------
 
 #use custom craype-ml installation
-use /global/homes/t/tkurth/custom_rpm
+module use /global/homes/t/tkurth/custom_rpm
 
 #set up python stuff
 module load tensorflow/intel-head
