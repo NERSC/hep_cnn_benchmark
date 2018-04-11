@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -q regular
-#SBATCH -A m1759
-#SBATCH -C knl,quad,cache
-#SBATCH -t 0:30:00
+#SBATCH -A dasrepo
+#SBATCH -C knl
+#SBATCH -t 1:00:00
 #SBATCH -J hep_train_tf
 
 
@@ -18,20 +18,15 @@
 #You are under no obligation whatsoever to provide any bug fixes, patches, or upgrades to the features, functionality or performance of the source code ("Enhancements") to anyone; however, if you choose to make your Enhancements available either publicly, or directly to Lawrence Berkeley National Laboratory, without imposing a separate written license agreement for such Enhancements, then you hereby grant the following license: a  non-exclusive, royalty-free perpetual license to install, use, modify, prepare derivative works, incorporate into other computer software, distribute, and sublicense such enhancements or derivative works thereof, in binary and source code form.
 #---------------------------------------------------------------
 
-#use custom craype-ml installation
-module use /global/homes/t/tkurth/custom_rpm
-
 #set up python stuff
-module load tensorflow/intel-head
-module use /global/homes/t/tkurth/custom_rpm/modulefiles
-module load craype-ml-plugin-py2/1.1.0
-
-#better binding
-#bindstring="numactl -C 1-67,69-135,137-203,205-271"
-bindstring=""
+#set up python stuff
+module load python
+module load gcc/7.1.0
+module use /project/projectdirs/m1759/charlene/tiramisu/build_directory/modules
+module load intel-mkldnn-horovod-mpi-hugepages-1.7-PERFTEST
 
 #run
 cd ../scripts/
 
 #launch srun
-srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u ${bindstring} python hep_classifier_tf_train_craype-ml.py --config=../configs/cori_knl_224_tune.json --num_tasks=${SLURM_NNODES} > hep_224x224_knl-craype-ml-plugin-2t_w$(( ${SLURM_NNODES} ))_p0.out 2>&1
+srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u python hep_classifier_tf_train_horovod.py --config=../configs/cori_knl_224_adam.json --num_tasks=${SLURM_NNODES} > hep_224x224_knl-horovod_w$(( ${SLURM_NNODES} ))_p0.out 2>&1
