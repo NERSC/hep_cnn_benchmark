@@ -29,4 +29,4 @@ module load intel-mkldnn-horovod-mpi-hugepages-1.7-PERFTEST
 cd ../scripts/
 
 #launch srun
-srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u python hep_classifier_tf_train_horovod.py --config=../configs/cori_knl_224_adam.json --num_tasks=${SLURM_NNODES} > hep_224x224_knl-horovod_w$(( ${SLURM_NNODES} ))_p0.out 2>&1
+srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u python hep_classifier_tf_train_horovod.py --config=../configs/cori_knl_224_adam.json --precision="fp16" --num_tasks=${SLURM_NNODES} #> hep_224x224_knl-horovod_w$(( ${SLURM_NNODES} ))_p0.out 2>&1
