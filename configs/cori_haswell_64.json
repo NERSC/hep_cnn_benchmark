@@ -1,7 +1,7 @@
 {
     "input_shape": [3, 64, 64],
     "inputpath": "/project/projectdirs/dasrepo/atlas_rpv_susy/benchmark_data/64x64",
-    "outputpath": "/project/projectdirs/mpccc/tkurth/DataScience/atlas_dl/output/64x64",
+    "outputpath": "/global/cscratch1/sd/sfarrell/hep_cnn_benchmark/hsw_64",
     "trainsamples": 726016,
     "arch" : "hsw",
     "mode": "sync",
@@ -10,6 +10,7 @@
     "save_interval": 1,
     "learning_rate": 0.00001,
     "dropout_p": 0.5,
+    "optimizer": "ADAM",
     "weight_decay": 0,
     "num_fc_units": 512,
     "num_layers": 3,
