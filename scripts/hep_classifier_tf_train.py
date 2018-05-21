@@ -40,7 +40,10 @@
 # such enhancements or derivative works thereof, in binary and source code form.
 #---------------------------------------------------------------      
 
-# In[2]:
+# Compatibility
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
 
 #os stuff
 import os
@@ -59,24 +62,16 @@ import time
 import numpy as np
 
 #tensorflow
-sys.path.append("/global/homes/t/tkurth/python/tfzoo/tensorflow_mkl_hdf5_mpi_cw")
 import tensorflow as tf
 import tensorflow.contrib.keras as tfk
 
 #slurm helpers
-sys.path.append("../")
 import slurm_tf_helper.setup_clusters as sc
 
 #housekeeping
 import networks.binary_classifier_tf as bc
 
-#debugging
-#tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-
-
-# # Useful Functions
-
-# In[ ]:
+# Useful Functions
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -141,8 +136,6 @@ def parse_arguments():
     
     return args
 
-
-# In[3]:
 
 def train_loop(sess,train_step,global_step,optlist,args,trainset,validationset):
     
@@ -273,16 +266,12 @@ def train_loop(sess,train_step,global_step,optlist,args,trainset,validationset):
             print(time.time(),"COMPLETED epoch %d, average validation auc %g"%(epochs_completed, validation_auc))
 
 
-# # Parse Parameters
-
-# In[ ]:
+# Parse Parameters
 
 args = parse_arguments()
 
 
-# # Multi-Node Stuff
-
-# In[6]:
+# Multi-Node Stuff
 
 #decide who will be worker and who will be parameters server
 if args['num_tasks'] > 1:
@@ -313,9 +302,7 @@ else:
     args["validation_batch_size_per_node"]=args["validation_batch_size"]
 
 
-# # On-Node Stuff
-
-# In[ ]:
+# On-Node Stuff
 
 if (args['node_type'] == 'worker'):
     #common stuff
@@ -348,9 +335,7 @@ if (args['node_type'] == 'worker'):
     print("Rank",args['task_index'],": using ",num_inter_threads,"-way task parallelism with ",num_intra_threads,"-way data parallelism.")
 
 
-# ## Build Network and Functions
-
-# In[ ]:
+# Build Network and Functions
 
 if args['node_type'] == 'worker':
     print("Rank",args["task_index"],":","Building model") 
@@ -368,9 +353,7 @@ if args['node_type'] == 'worker':
         print("Network for rank",args["task_index"],":",network)
 
 
-# ## Setup Iterators
-
-# In[ ]:
+# Setup Iterators
 
 if args['node_type'] == 'worker':
     print("Rank",args["task_index"],":","Setting up iterators")
@@ -395,9 +378,7 @@ args["last_step"] = int(args["trainsamples"] * args["num_epochs"] / (args["train
 print("Stopping after %d global steps"%(args["last_step"]))
 
 
-# # Train Model
-
-# In[ ]:
+# Train Model
 
 #determining which model to load:
 metafilelist = [args['modelpath']+'/'+x for x in os.listdir(args['modelpath']) if x.endswith('.meta')]
@@ -405,8 +386,6 @@ if not metafilelist:
     #no model found, restart from scratch
     args['restart']=True
 
-
-# In[ ]:
 
 #initialize session
 if (args['node_type'] == 'worker'):
@@ -475,9 +454,3 @@ if (args['node_type'] == 'worker'):
                 train_loop(sess,train_step,global_step,optlist,args,trainset,validationset)
                 total_time -= time.time()
                 print("FINISHED Training. Total time %g"%(total_time))
-
-
-# In[ ]:
-
-
-
