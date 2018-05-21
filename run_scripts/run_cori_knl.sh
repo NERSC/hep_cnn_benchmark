@@ -19,6 +19,7 @@
 
 # Set up environment
 module load tensorflow/intel-1.8.0-py27
+export PYTHONPATH=$PWD:$PYTHONPATH
 
 # Configure number of parameter servers
 if [ $SLURM_NNODES -ge 2 ]; then
@@ -43,10 +44,9 @@ else
 fi
 
 # Run the training
-cd ../scripts
 set -x
 srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u \
-    python hep_classifier_tf_train.py \
+    python scripts/hep_classifier_tf_train.py \
     --config=../configs/cori_knl_224_adam.json \
     --num_tasks=${SLURM_NNODES} \
     --num_ps=${NUM_PS}

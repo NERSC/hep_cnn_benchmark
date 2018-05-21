@@ -19,6 +19,7 @@
 
 # Set up environment
 module load tensorflow/intel-1.8.0-py27
+export PYTHONPATH=$PWD:$PYTHONPATH
 
 # Configuration
 NUM_PS=0
@@ -35,9 +36,8 @@ fi
 # Run the training
 echo "Running training"
 
-cd ../scripts/
 set -x
-${runcommand} python hep_classifier_tf_train.py \
+${runcommand} python scripts/hep_classifier_tf_train.py \
     --config=../configs/cori_haswell_224.json \
     --num_tasks=${SLURM_NNODES} \
     --num_ps=${NUM_PS}

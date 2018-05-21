@@ -17,6 +17,8 @@
 #You are under no obligation whatsoever to provide any bug fixes, patches, or upgrades to the features, functionality or performance of the source code ("Enhancements") to anyone; however, if you choose to make your Enhancements available either publicly, or directly to Lawrence Berkeley National Laboratory, without imposing a separate written license agreement for such Enhancements, then you hereby grant the following license: a  non-exclusive, royalty-free perpetual license to install, use, modify, prepare derivative works, incorporate into other computer software, distribute, and sublicense such enhancements or derivative works thereof, in binary and source code form.
 #---------------------------------------------------------------
 
+# TODO : THIS SCRIPT NEEDS TO BE UPDATED
+
 #use custom craype-ml installation
 module use /global/homes/t/tkurth/custom_rpm
 
@@ -30,7 +32,4 @@ module load craype-ml-plugin-py2/1.1.0
 bindstring=""
 
 #run
-cd ../scripts/
-
-#launch srun
-srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u ${bindstring} python hep_classifier_tf_train_craype-ml.py --config=../configs/cori_knl_224_tune.json --num_tasks=${SLURM_NNODES} > hep_224x224_knl-craype-ml-plugin-2t_w$(( ${SLURM_NNODES} ))_p0.out 2>&1
+srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u ${bindstring} python scripts/hep_classifier_tf_train_craype-ml.py --config=../configs/cori_knl_224_tune.json --num_tasks=${SLURM_NNODES} > hep_224x224_knl-craype-ml-plugin-2t_w$(( ${SLURM_NNODES} ))_p0.out 2>&1
