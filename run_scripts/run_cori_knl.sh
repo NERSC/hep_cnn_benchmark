@@ -47,6 +47,6 @@ fi
 set -x
 srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u \
     python scripts/hep_classifier_tf_train.py \
-    --config=../configs/cori_knl_224_adam.json \
+    --config=configs/cori_knl_224_adam.json \
     --num_tasks=${SLURM_NNODES} \
     --num_ps=${NUM_PS}
