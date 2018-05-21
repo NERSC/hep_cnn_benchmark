@@ -1,6 +1,5 @@
 #!/bin/bash
 #SBATCH -q premium
-#SBATCH -A nstaff
 #SBATCH -C knl
 #SBATCH -t 1:00:00
 #SBATCH -J hep_train_tf
@@ -18,17 +17,13 @@
 #You are under no obligation whatsoever to provide any bug fixes, patches, or upgrades to the features, functionality or performance of the source code ("Enhancements") to anyone; however, if you choose to make your Enhancements available either publicly, or directly to Lawrence Berkeley National Laboratory, without imposing a separate written license agreement for such Enhancements, then you hereby grant the following license: a  non-exclusive, royalty-free perpetual license to install, use, modify, prepare derivative works, incorporate into other computer software, distribute, and sublicense such enhancements or derivative works thereof, in binary and source code form.
 #---------------------------------------------------------------
 
-#set up python stuff
-module load python
-source activate thorstendl-horovod
-module load gcc/6.3.0
+# Environment
+module load tensorflow/intel-1.8.0-py27
 
-#add this to library path:
-modulebase=$(dirname $(module show tensorflow/intel-head 2>&1 | grep PATH |awk '{print $3}'))
-export PYTHONPATH=${modulebase}/lib/python2.7/site-packages:${PYTHONPATH}
-
-#run
-cd ../scripts/
-
-#launch srun
-srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u python hep_classifier_tf_train_horovod.py --config=../configs/cori_knl_224_adam.json --num_tasks=${SLURM_NNODES} > hep_224x224_knl-horovod_w$(( ${SLURM_NNODES} ))_p0.out 2>&1
+# Run
+cd ../scripts
+set -x
+srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u \
+    python hep_classifier_tf_train_horovod.py \
+    --config=../configs/cori_knl_224_adam.json \
+    --num_tasks=${SLURM_NNODES}

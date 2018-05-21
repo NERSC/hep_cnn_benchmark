@@ -1,6 +1,5 @@
 #!/bin/bash
-#SBATCH -p regular
-#SBATCH -A nstaff
+#SBATCH -q regular
 #SBATCH -C haswell
 #SBATCH -t 1:00:00
 #SBATCH -J hep_train_tf
@@ -18,18 +17,10 @@
 #You are under no obligation whatsoever to provide any bug fixes, patches, or upgrades to the features, functionality or performance of the source code ("Enhancements") to anyone; however, if you choose to make your Enhancements available either publicly, or directly to Lawrence Berkeley National Laboratory, without imposing a separate written license agreement for such Enhancements, then you hereby grant the following license: a  non-exclusive, royalty-free perpetual license to install, use, modify, prepare derivative works, incorporate into other computer software, distribute, and sublicense such enhancements or derivative works thereof, in binary and source code form.
 #---------------------------------------------------------------
 
+# Set up environment
+module load tensorflow/intel-1.8.0-py27
 
-#set up python stuff
-module load python
-source activate thorstendl-devel
-#export PYTHONPATH=/usr/common/software/tensorflow/intel-tensorflow/head/lib/python2.7/site-packages
-export PYTHONPATH=/global/homes/t/tkurth/python/tfzoo/tensorflow_mkl_hdf5_mpi_cw
-#module load advisor/2018.up1
-module load gcc/6.3.0
-
-#run
-cd ../scripts/
-
+# Configuration
 NUM_PS=0
 if [ ! -z ${SLURM_NNODES} ]; then
     if [ ${SLURM_NNODES} -ge 2 ]; then
@@ -41,11 +32,12 @@ else
     runcommand=""
 fi
 
-#advcommand_survey="advixe-cl --collect survey -profile-python --project-dir ./hep_cnn_advixe --"
-#advcommand_trips="advixe-cl --collect tripcounts -flop -profile-python --project-dir ./hep_cnn_advixe --" 
+# Run the training
+echo "Running training"
 
-#rm -r hep_cnn_advixe
-${runcommand} python hep_classifier_tf_train.py --config=../configs/cori_haswell_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
-#${runcommand} ${advcommand_survey} ./hep_classifier_tf_train.py --config=../configs/cori_haswell_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
-#${runcommand} ${advcommand_trips} ./hep_classifier_tf_train.py --config=../configs/cori_haswell_224.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS}
-
+cd ../scripts/
+set -x
+${runcommand} python hep_classifier_tf_train.py \
+    --config=../configs/cori_haswell_224.json \
+    --num_tasks=${SLURM_NNODES} \
+    --num_ps=${NUM_PS}

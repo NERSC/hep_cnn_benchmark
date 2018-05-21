@@ -1,6 +1,5 @@
 #!/bin/bash
 #SBATCH -p regular
-#SBATCH -A nstaff
 #SBATCH -C knl,quad,cache
 #SBATCH -t 1:00:00
 #SBATCH -J hep_train_tf
@@ -18,18 +17,14 @@
 #You are under no obligation whatsoever to provide any bug fixes, patches, or upgrades to the features, functionality or performance of the source code ("Enhancements") to anyone; however, if you choose to make your Enhancements available either publicly, or directly to Lawrence Berkeley National Laboratory, without imposing a separate written license agreement for such Enhancements, then you hereby grant the following license: a  non-exclusive, royalty-free perpetual license to install, use, modify, prepare derivative works, incorporate into other computer software, distribute, and sublicense such enhancements or derivative works thereof, in binary and source code form.
 #---------------------------------------------------------------
 
-#set up python stuff
-module load python
-source activate thorstendl-devel
-export PYTHONPATH=/usr/common/software/tensorflow/intel-tensorflow/head/lib/python2.7/site-packages
+# Set up environment
+module load tensorflow/intel-1.8.0-py27
 
-#run
-cd ../scripts/
-
+# Configure number of parameter servers
 if [ $SLURM_NNODES -ge 2 ]; then
     NUM_PS=1
 
-    #check if user specified more PS
+    # Check if user specified more PS
     while getopts p: option
     do
 	case "${option}"
@@ -47,4 +42,11 @@ else
     NUM_PS=0
 fi
 
-srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u python hep_classifier_tf_train.py --config=../configs/cori_knl_224_adam.json --num_tasks=${SLURM_NNODES} --num_ps=${NUM_PS} #> hep_224x224_knl_w$(( ${SLURM_NNODES} - ${NUM_PS} ))_p${NUM_PS}.out 2>&1
+# Run the training
+cd ../scripts
+set -x
+srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u \
+    python hep_classifier_tf_train.py \
+    --config=../configs/cori_knl_224_adam.json \
+    --num_tasks=${SLURM_NNODES} \
+    --num_ps=${NUM_PS}

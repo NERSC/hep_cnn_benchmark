@@ -1,6 +1,5 @@
 #!/bin/bash
 #SBATCH -q regular
-#SBATCH -A m1759
 #SBATCH -C knl,quad,cache
 #SBATCH -t 4:00:00
 #SBATCH --gres=craynetwork:2

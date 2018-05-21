@@ -1,6 +1,5 @@
 #!/bin/bash
 #SBATCH -q regular
-#SBATCH -A m1759
 #SBATCH -C knl,quad,cache
 #SBATCH -t 0:30:00
 #SBATCH -J hep_train_tf
