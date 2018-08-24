@@ -169,22 +169,23 @@ def train_loop(sess, ops, args, feed_dict_train, feed_dict_validation):
                     _, gstep, summary, tmp_loss = sess.run([train_step, global_step, ops["train_summary"], loss_eval], feed_dict=feed_dict_train)
                 else:
                     _, gstep, tmp_loss = sess.run([train_step, global_step, loss_eval], feed_dict=feed_dict_train)        
+                end_time = time.time()
+                train_time += end_time-start_time
         
-                    end_time = time.time()
-                    train_time += end_time-start_time
+                #increment train loss and batch number
+                train_loss += tmp_loss
+                total_batches += 1
+                train_batches += 1
         
-                    #increment train loss and batch number
-                    train_loss += tmp_loss
-                    total_batches += 1
-                    train_batches += 1
-        
-                    #determine if we give a short update:
-                    if gstep%args['display_interval']==0:
-                        if args["is_chief"]:
-                            print(time.time(),"REPORT: global step %d., average training loss %g (%.3f sec/batch)"%(gstep,
+                #determine if we give a short update:
+                if gstep%args['display_interval']==0:
+                    if args["is_chief"]:
+                        print(time.time(),"REPORT: global step %d., average training loss %g (%.3f sec/batch)"%(gstep,
                                                                                                             train_loss/float(train_batches),
                                                                                                             train_time/float(train_batches)))
-                        train_batches = 0.
+                    train_batches = 0.
+                    train_loss = 0.
+                    train_time = 0.
         
             except:
                 #get global step:
@@ -257,7 +258,7 @@ def main():
     #common stuff
     os.environ["KMP_BLOCKTIME"] = "1"
     os.environ["KMP_SETTINGS"] = "1"
-    os.environ["KMP_AFFINITY"]= "granularity=fine,compact,1,0"
+    os.environ["KMP_AFFINITY"]= "noverbose,granularity=fine,compact,1,0"
     
     #arch-specific stuff
     if args['arch']=='hsw':

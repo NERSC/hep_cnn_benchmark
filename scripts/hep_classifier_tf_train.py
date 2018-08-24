@@ -132,18 +132,10 @@ def parse_arguments():
     return args
 
 
-def train_loop(sess,train_step,global_step,args,iterator_train_handle,iterator_validation_handle):
-    
-    #counter stuff
-    trainset.reset()
-    validationset.reset()
+def train_loop(sess, ops, args, feed_dict_train, feed_dict_validation):
     
     #restore weights belonging to graph
     epochs_completed = 0
-    if not args['restart']:
-        last_model = tf.train.latest_checkpoint(args['modelpath'])
-        print("Restoring model %s.",last_model)
-        model_saver.restore(sess,last_model)
     
     #losses
     train_loss=0.
@@ -151,9 +143,14 @@ def train_loop(sess,train_step,global_step,args,iterator_train_handle,iterator_v
     total_batches=0
     train_time=0
     
-    #set up feed dict:
-    feed_dict_train={variables['iterator_handle_']: iterator_train_handle, variables['keep_prob_']: args['dropout_p']}
-    feed_dict_validation={variables['iterator_handle_']: iterator_validation_handle, variables['keep_prob_']: 1.0}
+    #extract ops
+    train_step = ops["train_step"]
+    global_step = ops["global_step"]
+    loss_eval = ops["loss_eval"]
+    acc_update = ops["acc_update"]
+    acc_eval = ops["acc_eval"]
+    auc_update = ops["auc_update"]
+    auc_eval = ops["auc_eval"]
     
     #do training
     while not sess.should_stop():
@@ -165,9 +162,9 @@ def train_loop(sess,train_step,global_step,args,iterator_train_handle,iterator_v
             try:
                 start_time = time.time()
                 if args['create_summary']:
-                    _, gstep, summary, tmp_loss = sess.run([train_step, global_step, train_summary, loss_fn], feed_dict=feed_dict_train)
+                    _, gstep, summary, tmp_loss = sess.run([train_step, global_step, train_summary, loss_eval], feed_dict=feed_dict_train)
                 else:
-                    _, gstep, tmp_loss = sess.run([train_step, global_step, loss_fn], feed_dict=feed_dict_train)        
+                    _, gstep, tmp_loss = sess.run([train_step, global_step, loss_eval], feed_dict=feed_dict_train)        
         
                 end_time = time.time()
                 train_time += end_time-start_time
@@ -205,10 +202,10 @@ def train_loop(sess,train_step,global_step,args,iterator_train_handle,iterator_v
                         start_time = time.time()
                         #compute loss
                         if args['create_summary']:
-                            gstep, summary, tmp_loss, _, _ =sess.run([global_step, validation_summary, loss_fn, accuracy_fn[1], auc_fn[1]],
+                            gstep, summary, tmp_loss, _, _ =sess.run([global_step, validation_summary, loss_eval, acc_update, auc_update],
                                                                 feed_dict=feed_dict_validation)
                         else:
-                            gstep, tmp_loss, _, _ = sess.run([global_step, loss_fn, accuracy_fn[1], auc_fn[1]], feed_dict=feed_dict_validation)
+                            gstep, tmp_loss, _, _ = sess.run([global_step, loss_fn, acc_update, auc_update], feed_dict=feed_dict_validation)
                 
                         #add loss
                         validation_loss += tmp_loss[0]
@@ -216,9 +213,9 @@ def train_loop(sess,train_step,global_step,args,iterator_train_handle,iterator_v
                         
                     except:
                         print(time.time(),"COMPLETED epoch %d, average validation loss %g"%(epochs_completed, validation_loss/float(validation_batches)))
-                        validation_accuracy = sess.run(accuracy_fn[0])
+                        validation_accuracy = sess.run(acc_eval)
                         print(time.time(),"COMPLETED epoch %d, average validation accu %g"%(epochs_completed, validation_accuracy))
-                        validation_auc = sess.run(auc_fn[0])
+                        validation_auc = sess.run(auc_eval)
                         print(time.time(),"COMPLETED epoch %d, average validation auc %g"%(epochs_completed, validation_auc))
 
 
@@ -432,10 +429,36 @@ def main():
                     #init iterators
                     sess.run(iterator_train_init_op, feed_dict={variable["iterator_handle_"]: iterator_train_handle})
                     sess.run(iterator_validation_init_op, feed_dict={variable["iterator_handle_"]: iterator_validation_handle})
-            
+                    
+                    #restore weights belonging to graph
+                    if not args['restart']:
+                        last_model = tf.train.latest_checkpoint(args['modelpath'])
+                        print("Restoring model %s.",last_model)
+                        model_saver.restore(sess,last_model)
+                    
+                    #feed dicts
+                    feed_dict_train={variables['iterator_handle_']: iterator_train_handle, variables['keep_prob_']: args['dropout_p']}
+                    feed_dict_validation={variables['iterator_handle_']: iterator_validation_handle, variables['keep_prob_']: 1.0}
+                    
+                    #ops dict
+                    ops = {"train_step" : train_step,
+                            "loss_eval": loss_avg_fn,
+                            "global_step": global_step,
+                            "acc_update": accuracy_fn[1],
+                            "acc_eval": accuracy_avg_fn,
+                            "auc_update": auc_fn[1],
+                            "auc_eval": auc_avg_fn
+                            }
+                
+                    #determine if we need a summary
+                    if args['create_summary'] and args["is_chief"]:
+                        ops["train_summary"] = train_summary
+                    else:
+                        ops["train_summary"] = None
+                    
                     #do the training loop
                     total_time = time.time()
-                    train_loop(sess,train_step,global_step,args,iterator_train_handle,iterator_validation_handle)
+                    train_loop(sess, ops, args, feed_dict_train, feed_dict_validation)
                     total_time -= time.time()
                     print("FINISHED Training. Total time %g"%(total_time))
 
