@@ -323,7 +323,7 @@ def main():
     #dataset_train = dataset_train.batch(args['train_batch_size_per_node'], drop_remainder=True)
     dataset_train = dataset_train.repeat()
     #do some weight-preprocessing
-    dataset_train = dataset_train.map(lambda im,lb,wg,nw,ps: (im, lb, tf.abs(tf.log(wg)), nw, ps), num_parallel_calls=2)
+    #dataset_train = dataset_train.map(lambda im,lb,wg,nw,ps: (im, lb, wg, nw, ps), num_parallel_calls=2)
     iterator_train = dataset_train.make_initializable_iterator()
     iterator_train_handle_string = iterator_train.string_handle()
     iterator_train_init_op = iterator_train.make_initializer(dataset_train)
@@ -338,7 +338,7 @@ def main():
     #dataset_validation = dataset_validation.batch(args['validation_batch_size_per_node'], drop_remainder=True)
     dataset_validation = dataset_validation.repeat(1)
     #do some weight-preprocessing
-    dataset_validation = dataset_validation.map(lambda im,lb,wg,nw,ps: (im, lb, tf.abs(tf.log(wg)), nw, ps), num_parallel_calls=2)
+    #dataset_validation = dataset_validation.map(lambda im,lb,wg,nw,ps: (im, lb, wg, nw, ps), num_parallel_calls=2)
     iterator_validation = dataset_validation.make_initializable_iterator()
     iterator_validation_handle_string = iterator_validation.string_handle()
     iterator_validation_init_op = iterator_validation.make_initializer(dataset_validation)

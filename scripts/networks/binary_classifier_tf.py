@@ -485,9 +485,10 @@ def build_functions(args,variables,network):
     tf.add_to_collection('prediction_op', prediction)
     
     #compute loss, important: use unscaled version!
+    weights = 1. #variables['weights_']
     loss = tf.losses.sparse_softmax_cross_entropy(variables['labels_'],
                                                   network[-2],
-                                                  weights=variables['weights_'])
+                                                  weights=weights)
     
     #compute accuracy
     accuracy = tf.metrics.accuracy(variables['labels_'],
