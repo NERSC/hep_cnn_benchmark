@@ -1,7 +1,7 @@
 {
     "input_shape": [224, 224, 3],
     "inputpath": "/project/projectdirs/dasrepo/atlas_rpv_susy/benchmark_data/224x224",
-    "outputpath": "/global/cscratch1/sd/sfarrell/hep_cnn_benchmark/knl_224",
+    "outputpath": "/global/cscratch1/sd/tkurth/atlas_dl/benchmark_runs",
     "trainsamples": 726016,
     "arch" : "knl",
     "mode": "sync",
