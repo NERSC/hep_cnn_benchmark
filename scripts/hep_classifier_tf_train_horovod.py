@@ -119,15 +119,6 @@ def parse_arguments():
     args['logpath'] = args['outputpath']+'/logs'
     args['modelpath'] = args['outputpath']+'/models'
     
-    if not os.path.isdir(args['logpath']):
-        print("Creating log directory ",args['logpath'])
-        os.makedirs(args['logpath'])
-    if not os.path.isdir(args['modelpath']):
-        print("Creating model directory ",args['modelpath'])
-        os.makedirs(args['modelpath'])
-    if not os.path.isdir(args['inputpath']) and not args['dummy_data']:
-        raise ValueError("Please specify a valid path with input files in hdf5 format")
-    
     #precision:
     args['precision'] = tf.float32
     if pargs.precision == "fp16":
@@ -331,6 +322,8 @@ def main():
     #only supported in tf 1.9 mand higher!
     #dataset_train = dataset_train.batch(args['train_batch_size_per_node'], drop_remainder=True)
     dataset_train = dataset_train.repeat()
+    #do some weight-preprocessing
+    dataset_train = dataset_train.map(lambda im,lb,wg,nw,ps: (im, lb, tf.abs(tf.log(wg)), nw, ps), num_parallel_calls=2)
     iterator_train = dataset_train.make_initializable_iterator()
     iterator_train_handle_string = iterator_train.string_handle()
     iterator_train_init_op = iterator_train.make_initializer(dataset_train)
@@ -343,7 +336,9 @@ def main():
     dataset_validation = dataset_validation.apply(tf.contrib.data.batch_and_drop_remainder(args['validation_batch_size_per_node']))
     #only supported in tf 1.9 and higher
     #dataset_validation = dataset_validation.batch(args['validation_batch_size_per_node'], drop_remainder=True)
-    dataset_validation = dataset_validation.repeat()
+    dataset_validation = dataset_validation.repeat(1)
+    #do some weight-preprocessing
+    dataset_validation = dataset_validation.map(lambda im,lb,wg,nw,ps: (im, lb, tf.abs(tf.log(wg)), nw, ps), num_parallel_calls=2)
     iterator_validation = dataset_validation.make_initializable_iterator()
     iterator_validation_handle_string = iterator_validation.string_handle()
     iterator_validation_init_op = iterator_validation.make_initializer(dataset_validation)
@@ -353,6 +348,16 @@ def main():
     args["last_step"] = args["steps_per_epoch"] * args["num_epochs"]
     if args["is_chief"]:
         print("Stopping after %d global steps"%(args["last_step"]))
+        
+        #set up file infrastructure
+        if not os.path.isdir(args['logpath']):
+            print("Creating log directory ",args['logpath'])
+            os.makedirs(args['logpath'])
+        if not os.path.isdir(args['modelpath']):
+            print("Creating model directory ",args['modelpath'])
+            os.makedirs(args['modelpath'])
+        if not os.path.isdir(args['inputpath']) and not args['dummy_data']:
+            raise ValueError("Please specify a valid path with input files in hdf5 format")
 
     # Train Model
     #determining which model to load:

@@ -290,7 +290,8 @@ def build_cnn_model(args):
     variables['iterator_handle_'] = handle
     variables['images_'] = next_elem[0]
     variables['labels_'] = next_elem[1]
-    variables['weights_'] = next_elem[2]
+    variables['normweights_'] = next_elem[2]
+    variables['weights_'] = next_elem[3]
     variables['keep_prob_'] = tf.placeholder(dtype)
     
     #empty network:
