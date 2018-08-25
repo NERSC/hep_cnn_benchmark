@@ -182,7 +182,7 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
     
         except:
             #get global step:
-            gstep = sess.run([global_step])
+            gstep = sess.run(global_step)
             
             #print stats
             if args["is_chief"]:
@@ -210,7 +210,6 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
             while True:
                 
                 try:
-                    start_time = time.time()
                     #compute loss
                     if args['create_summary']:
                         summary, tmp_loss, _, _ = sess.run([validation_summary, loss_eval, acc_update, auc_update],
@@ -219,16 +218,16 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
                         tmp_loss, _, _ = sess.run([loss_eval, acc_update, auc_update], feed_dict=feed_dict_validation)
             
                     #add loss
-                    validation_loss += tmp_loss[0]
+                    validation_loss += tmp_loss
                     validation_batches += 1
                     
                 except:
                     if args["is_chief"]:
-                        print(time.time(),"COMPLETED: global step %d (%d), average validation loss %g"%(gstep, args["last_step"], validation_loss/float(validation_batches)))
+                        print(time.time(),"COMPLETED: global step %d (%d), average validation loss %.6f"%(gstep, args["last_step"], validation_loss/float(validation_batches)))
                         validation_accuracy = sess.run(acc_eval)
-                        print(time.time(),"COMPLETED: global step %d (%d), average validation accu %g"%(gstep, args["last_step"], validation_accuracy))
+                        print(time.time(),"COMPLETED: global step %d (%d), average validation accu %.6f"%(gstep, args["last_step"], validation_accuracy))
                         validation_auc = sess.run(auc_eval)
-                        print(time.time(),"COMPLETED: global step %d (%d), average validation auc %g"%(gstep, args["last_step"], validation_auc))
+                        print(time.time(),"COMPLETED: global step %d (%d), average validation auc %.6f"%(gstep, args["last_step"], validation_auc))
                     break
 
 
@@ -310,7 +309,6 @@ def main():
     if not args['dummy_data']:
         #training files
         trainfiles = [args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if 'train' in x and (x.endswith('.h5') or x.endswith('.hdf5'))]
-        trainfiles = trainfiles[:2]
         trainset = bc.DataSet(trainfiles,args['num_workers'],args['task_index'],split_filelist=True,split_file=False,data_format=args["conv_params"]['data_format'])
         
         #validation files
@@ -333,7 +331,7 @@ def main():
     #dataset_train = dataset_train.map(lambda im,lb,wg,nw,ps: (im, lb, wg, nw, ps), num_parallel_calls=2)
     iterator_train = dataset_train.make_initializable_iterator()
     iterator_train_handle_string = iterator_train.string_handle()
-    iterator_train_init_op = variables['iterator_'].make_initializer(dataset_train)
+    iterator_train_init_op = iterator_train.make_initializer(dataset_train)
     
     
     #validation
@@ -347,7 +345,7 @@ def main():
     #dataset_validation = dataset_validation.map(lambda im,lb,wg,nw,ps: (im, lb, wg, nw, ps), num_parallel_calls=2)
     iterator_validation = dataset_validation.make_initializable_iterator()
     iterator_validation_handle_string = iterator_validation.string_handle()
-    iterator_validation_init_op = variables['iterator_'].make_initializer(dataset_validation)
+    iterator_validation_init_op = iterator_validation.make_initializer(dataset_validation)
     
     #Determine stopping point, i.e. compute last_step:
     args["steps_per_epoch"] = args["trainsamples"] // (args["train_batch_size_per_node"] * args["num_workers"])
