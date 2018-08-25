@@ -1,5 +1,6 @@
 #!/bin/bash
-#SBATCH -q premium
+#SBATCH -q regular
+#SBATCH -A dasrepo
 #SBATCH -C knl
 #SBATCH -t 1:00:00
 #SBATCH -J hep_train_tf
@@ -51,9 +52,25 @@
 module load tensorflow/intel-1.8.0-py36
 export PYTHONPATH=$PWD:$PYTHONPATH
 
+#prepare run directory
+configfile=cori_knl_224_adam.json
+basedir=/global/cscratch1/sd/tkurth/atlas_dl/benchmark_runs
+rundir=${basedir}/run_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
+
+#create directory
+mkdir -p ${rundir}
+
+#stage in scripts
+cp ../scripts/hep_classifier_tf_train_horovod.py ${rundir}/
+cp -r ../scripts/networks ${rundir}/
+cp ../configs/${configfile} ${rundir}/
+
+#step in
+cd ${rundir}
+
 # Run
 set -x
 srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u \
-    python ../scripts/hep_classifier_tf_train_horovod.py \
-    --config=../configs/cori_knl_224_adam.json \
-    --num_tasks=${SLURM_NNODES}
+    python hep_classifier_tf_train_horovod.py \
+    --config=${configfile} \
+    --num_tasks=${SLURM_NNODES} |& tee out.fp32.lag0.${SLURM_JOBID}

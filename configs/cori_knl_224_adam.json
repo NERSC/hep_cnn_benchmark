@@ -1,7 +1,7 @@
 {
     "input_shape": [224, 224, 3],
     "inputpath": "/global/cscratch1/sd/tkurth/atlas_dl/benchmark_data/224x224",
-    "outputpath": "/global/cscratch1/sd/tkurth/atlas_dl/benchmark_runs",
+    "outputpath": ".",
     "trainsamples": 726016,
     "arch" : "knl",
     "mode": "sync",
