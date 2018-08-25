@@ -176,7 +176,7 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
                     print(time.time(),"REPORT: global step %d (%d), average training loss %.6f (%.3f sec/batch)"%(gstep, args["last_step"],
                                                                                                         train_loss/float(train_batches),
                                                                                                         train_time/float(train_batches)))
-                train_batches = 0.
+                train_batches = 0
                 train_loss = 0.
                 train_time = 0.
     
@@ -185,7 +185,7 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
             gstep = sess.run(global_step)
             
             #print stats
-            if args["is_chief"]:
+            if args["is_chief"] and train_batches > 0:
                 print(time.time(),"COMPLETED: global step %d (%d), average training loss %.6f (%.3f sec/batch)"%(gstep, args["last_step"],
                                                                                      train_loss/float(train_batches),
                                                                                      train_time/float(train_batches)))
@@ -194,14 +194,14 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
             sess.run(iterator_train_init_op, feed_dict=feed_dict_train)
         
             #reset counters
-            train_loss=0.
-            train_batches=0
-            train_time=0
+            train_loss = 0.
+            train_batches = 0
+            train_time = 0.
         
             #compute validation loss:
             #reset variables
-            validation_loss=0.
-            validation_batches=0
+            validation_loss = 0.
+            validation_batches = 0
             
             #reinit the validation iterator
             sess.run(iterator_validation_init_op, feed_dict=feed_dict_validation)
