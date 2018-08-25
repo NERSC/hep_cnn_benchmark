@@ -2,7 +2,7 @@
 #SBATCH -q regular
 #SBATCH -A dasrepo
 #SBATCH -C knl
-#SBATCH -t 1:00:00
+#SBATCH -t 4:00:00
 #SBATCH -J hep_train_tf
 
 #*** License Agreement ***

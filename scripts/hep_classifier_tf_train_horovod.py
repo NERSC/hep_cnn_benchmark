@@ -235,13 +235,12 @@ def main():
     # Parse Parameters
     args = parse_arguments()
     
-    
     # Multi-Node Stuff
     #decide who will be worker and who will be parameters server
     args['num_workers']=hvd.size()
     args['task_index']=hvd.rank()
     args["is_chief"]=True if args['task_index']==0 else False
-        
+    
     #general stuff
     if not args["batch_size_per_node"]:
         args["train_batch_size_per_node"]=int(args["train_batch_size"]/float(args["num_workers"]))
@@ -369,7 +368,6 @@ def main():
         #no model found, restart from scratch
         args['restart']=True
     
-    
     #a hook that will stop training at a certain number of steps
     hooks=[tf.train.StopAtStepHook(last_step=args["last_step"])]
             
@@ -400,11 +398,16 @@ def main():
     
     #checkpointing hook
     if args["is_chief"]:
-        checkpoint_save_freq = args["steps_per_epoch"]
+        checkpoint_save_freq = np.min([args["steps_per_epoch"], 500])
         model_saver = tf.train.Saver(max_to_keep = 1000)
         hooks.append(tf.train.CheckpointSaverHook(checkpoint_dir=args['modelpath'], save_steps=checkpoint_save_freq, saver=model_saver))
-        
+    
+    #print parameters
     if args["is_chief"]:
+        for k,v in args.items():
+            print("{k}: {v}".format(k=k,v=v))
+        
+        #print start command
         print("Starting training using "+args['optimizer']+" optimizer")
             
     with tf.train.MonitoredTrainingSession(config=sess_config, hooks=hooks) as sess:
