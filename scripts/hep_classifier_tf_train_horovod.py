@@ -126,6 +126,45 @@ def parse_arguments():
     
     return args
 
+def evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, prefix):
+    
+    #reinit the validation iterator
+    sess.run(iterator_validation_init_op, feed_dict=feed_dict_validation)
+    
+    #compute validation loss:
+    #reset variables
+    validation_loss = 0.
+    validation_batches = 0
+    
+    #get global step:
+    gstep = sess.run(ops["global_step"])
+    
+    #iterate over validation set
+    while validation_batches < args["validation_max_steps"]:
+        
+        try:
+            #compute loss
+            if args['create_summary']:
+                summary, tmp_loss, _, _ = sess.run([ops["validation_summary"], ops["loss_eval"], ops["acc_update"], ops["auc_update"]],
+                                                    feed_dict=feed_dict_validation)
+            else:
+                tmp_loss, _, _ = sess.run([ops["loss_eval"], ops["acc_update"], ops["auc_update"]], feed_dict=feed_dict_validation)
+    
+            #add loss
+            validation_loss += tmp_loss
+            validation_batches += 1
+            
+        except:
+            break
+    
+    #report the results
+    validation_accuracy, validation_auc = sess.run([ops["acc_eval"], ops["auc_eval"]])
+    if args["is_chief"]:
+        tstamp = time.time()
+        print(tstamp,"EVALUATION",prefix,": step %d (%d), average loss %.6f"%(gstep, args["last_step"], validation_loss/float(validation_batches)))
+        print(tstamp,"EVALUATION",prefix,": step %d (%d), average accu %.6f"%(gstep, args["last_step"], validation_accuracy))
+        print(tstamp,"EVALUATION",prefix,": step %d (%d), average auc %.6f"%(gstep, args["last_step"], validation_auc))
+
 
 def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterator_validation_init_op, feed_dict_validation):
     
@@ -173,61 +212,30 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
             #determine if we give a short update:
             if gstep%args['display_interval']==0:
                 if args["is_chief"]:
-                    print(time.time(),"REPORT: global step %d (%d), average training loss %.6f (%.3f sec/batch)"%(gstep, args["last_step"],
+                    print(time.time(),"TRAINING REPORT: step %d (%d), average loss %.6f (%.3f sec/batch)"%(gstep, args["last_step"],
                                                                                                         train_loss/float(train_batches),
                                                                                                         train_time/float(train_batches)))
                 train_batches = 0
                 train_loss = 0.
                 train_time = 0.
+                
+            if gstep%args['validation_interval']==0:
+                evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, "REPORT")
     
         except:
             #get global step:
             gstep = sess.run(global_step)
-            
-            #print stats
-            if args["is_chief"] and train_batches > 0:
-                print(time.time(),"COMPLETED: global step %d (%d), average training loss %.6f (%.3f sec/batch)"%(gstep, args["last_step"],
-                                                                                     train_loss/float(train_batches),
-                                                                                     train_time/float(train_batches)))
-                                                                                     
+
             #reinit iterator for next round
             sess.run(iterator_train_init_op, feed_dict=feed_dict_train)
-        
+            
             #reset counters
             train_loss = 0.
             train_batches = 0
             train_time = 0.
-        
-            #compute validation loss:
-            #reset variables
-            validation_loss = 0.
-            validation_batches = 0
             
-            #reinit the validation iterator
-            sess.run(iterator_validation_init_op, feed_dict=feed_dict_validation)
-            
-            #iterate over validation set
-            while True:
-                
-                try:
-                    #compute loss
-                    if args['create_summary']:
-                        summary, tmp_loss, _, _ = sess.run([validation_summary, loss_eval, acc_update, auc_update],
-                                                            feed_dict=feed_dict_validation)
-                    else:
-                        tmp_loss, _, _ = sess.run([loss_eval, acc_update, auc_update], feed_dict=feed_dict_validation)
-            
-                    #add loss
-                    validation_loss += tmp_loss
-                    validation_batches += 1
-                    
-                except:
-                    validation_accuracy, validation_auc = sess.run([acc_eval, auc_eval])
-                    if args["is_chief"]:
-                        print(time.time(),"COMPLETED: global step %d (%d), average validation loss %.6f"%(gstep, args["last_step"], validation_loss/float(validation_batches)))
-                        print(time.time(),"COMPLETED: global step %d (%d), average validation accu %.6f"%(gstep, args["last_step"], validation_accuracy))
-                        print(time.time(),"COMPLETED: global step %d (%d), average validation auc %.6f"%(gstep, args["last_step"], validation_auc))
-                    break
+            #run eval loop:
+            evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, "EPOCH SUMMARY")
 
 
 def main():
@@ -249,6 +257,9 @@ def main():
         args["train_batch_size_per_node"]=args["train_batch_size"]
         args["validation_batch_size_per_node"]=args["validation_batch_size"]
     
+    #check how many validation steps we will do
+    if "validation_max_steps" not in args or args["validation_max_steps"] <= 0:
+        args["validation_max_steps"] = np.inf
     
     # On-Node Stuff
     #common stuff
@@ -307,11 +318,11 @@ def main():
     if not args['dummy_data']:
         #training files
         trainfiles = [args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if 'train' in x and (x.endswith('.h5') or x.endswith('.hdf5'))]
-        trainset = bc.DataSet(trainfiles,args['num_workers'],args['task_index'],split_filelist=True,split_file=False,data_format=args["conv_params"]['data_format'])
+        trainset = bc.DataSet(trainfiles,args['num_workers'],args['task_index'],split_filelist=True,split_file=False,shuffle=True,data_format=args["conv_params"]['data_format'])
         
         #validation files
         validationfiles = [args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if 'val' in x and (x.endswith('.h5') or x.endswith('.hdf5'))]
-        validationset = bc.DataSet(validationfiles,args['num_workers'],args['task_index'],split_filelist=True,split_file=False,data_format=args["conv_params"]['data_format'])
+        validationset = bc.DataSet(validationfiles,args['num_workers'],args['task_index'],split_filelist=True,split_file=False,shuffle=True,data_format=args["conv_params"]['data_format'])
     else:
         #training files and validation files are just dummy sets then
         trainset = bc.DummySet(input_shape=args['input_shape'], samples_per_epoch=10000, task_index=args['task_index'])
