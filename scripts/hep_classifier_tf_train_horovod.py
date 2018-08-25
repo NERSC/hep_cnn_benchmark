@@ -222,11 +222,10 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
                     validation_batches += 1
                     
                 except:
+                    validation_accuracy, validation_auc = sess.run([acc_eval, auc_eval])
                     if args["is_chief"]:
                         print(time.time(),"COMPLETED: global step %d (%d), average validation loss %.6f"%(gstep, args["last_step"], validation_loss/float(validation_batches)))
-                        validation_accuracy = sess.run(acc_eval)
                         print(time.time(),"COMPLETED: global step %d (%d), average validation accu %.6f"%(gstep, args["last_step"], validation_accuracy))
-                        validation_auc = sess.run(auc_eval)
                         print(time.time(),"COMPLETED: global step %d (%d), average validation auc %.6f"%(gstep, args["last_step"], validation_auc))
                     break
 
