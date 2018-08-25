@@ -48,7 +48,7 @@
 
 
 # Environment
-module load tensorflow/intel-1.8.0-py27
+module load tensorflow/intel-1.8.0-py36
 export PYTHONPATH=$PWD:$PYTHONPATH
 
 # Run

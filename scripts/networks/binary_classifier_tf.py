@@ -157,20 +157,20 @@ class DataSet(object):
         return self._epochs_completed
     
     def next(self):
-      for i in itertools.count(1): 
-        try:
-          images, labels, normweights, weights, psr = self.next_batch(1)
-        except:
-          return
-      
-        #squeeze dims:
-        images = np.squeeze(images, axis=0)
-        labels = np.squeeze(labels, axis=0)
-        normweights = np.squeeze(normweights, axis=0)
-        weights = np.squeeze(weights, axis=0)
-        psr = np.squeeze(psr, axis=0)
-        
-        yield images, labels, normweights, weights, psr
+        for i in itertools.count(1): 
+            try:
+                images, labels, normweights, weights, psr = self.next_batch(1)
+                
+                #squeeze dims:
+                images = np.squeeze(images, axis=0)
+                labels = np.squeeze(labels, axis=0)
+                normweights = np.squeeze(normweights, axis=0)
+                weights = np.squeeze(weights, axis=0)
+                psr = np.squeeze(psr, axis=0)
+                
+                yield images, labels, normweights, weights, psr
+            except:
+                return
     
     def next_batch(self, batch_size):
         """Return the next `batch_size` examples from this data set."""
@@ -200,7 +200,7 @@ class DataSet(object):
                 #reset file index and shuffle list
                 self._file_index=0
                 if self._shuffle:
-                  np.random.shuffle(self._filelist)
+                    np.random.shuffle(self._filelist)
                 return
             
             #load the next file
@@ -287,6 +287,7 @@ def build_cnn_model(args):
                                                             (args['train_batch_size_per_node'], 1)
                                                             ))
     next_elem = iterator.get_next()
+    variables['iterator_'] = iterator
     variables['iterator_handle_'] = handle
     variables['images_'] = next_elem[0]
     variables['labels_'] = next_elem[1]

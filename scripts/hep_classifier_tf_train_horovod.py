@@ -127,7 +127,7 @@ def parse_arguments():
     return args
 
 
-def train_loop(sess, ops, args, feed_dict_train, feed_dict_validation):
+def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterator_validation_init_op, feed_dict_validation):
     
     #counters
     epochs_completed = 0
@@ -147,81 +147,89 @@ def train_loop(sess, ops, args, feed_dict_train, feed_dict_validation):
     auc_update = ops["auc_update"]
     auc_eval = ops["auc_eval"]
     
+    #init iterators
+    sess.run(iterator_train_init_op, feed_dict=feed_dict_train)
+    
     #do training
     while not sess.should_stop():
         
-        while True:
-            #increment total batch counter
-            total_batches+=1
-                    
-            try:
-                start_time = time.time()
-                if args['create_summary']:
-                    _, gstep, summary, tmp_loss = sess.run([train_step, global_step, ops["train_summary"], loss_eval], feed_dict=feed_dict_train)
-                else:
-                    _, gstep, tmp_loss = sess.run([train_step, global_step, loss_eval], feed_dict=feed_dict_train)        
-                end_time = time.time()
-                train_time += end_time-start_time
-        
-                #increment train loss and batch number
-                train_loss += tmp_loss
-                total_batches += 1
-                train_batches += 1
-        
-                #determine if we give a short update:
-                if gstep%args['display_interval']==0:
-                    if args["is_chief"]:
-                        print(time.time(),"REPORT: global step %d., average training loss %g (%.3f sec/batch)"%(gstep,
-                                                                                                            train_loss/float(train_batches),
-                                                                                                            train_time/float(train_batches)))
-                    train_batches = 0.
-                    train_loss = 0.
-                    train_time = 0.
-        
-            except:
-                #get global step:
-                gstep = sess.run([global_step])
+        #increment total batch counter
+        total_batches+=1
+                
+        try:
+            start_time = time.time()
+            if args['create_summary']:
+                _, gstep, summary, tmp_loss = sess.run([train_step, global_step, ops["train_summary"], loss_eval], feed_dict=feed_dict_train)
+            else:
+                _, gstep, tmp_loss = sess.run([train_step, global_step, loss_eval], feed_dict=feed_dict_train)        
+            end_time = time.time()
+            train_time += end_time-start_time
+            
+            #increment train loss and batch number
+            train_loss += tmp_loss
+            total_batches += 1
+            train_batches += 1
+            
+            #determine if we give a short update:
+            if gstep%args['display_interval']==0:
                 if args["is_chief"]:
-                    print(time.time(),"COMPLETED: global step %d, average training loss %g (%.3f sec/batch)"%(gstep, 
-                                                                                         train_loss/float(train_batches),
-                                                                                         train_time/float(train_batches)))
+                    print(time.time(),"REPORT: global step %d (%d), average training loss %.6f (%.3f sec/batch)"%(gstep, args["last_step"],
+                                                                                                        train_loss/float(train_batches),
+                                                                                                        train_time/float(train_batches)))
+                train_batches = 0.
+                train_loss = 0.
+                train_time = 0.
+    
+        except:
+            #get global step:
+            gstep = sess.run([global_step])
             
-                #reset counters
-                train_loss=0.
-                train_batches=0
-                train_time=0
+            #print stats
+            if args["is_chief"]:
+                print(time.time(),"COMPLETED: global step %d (%d), average training loss %.6f (%.3f sec/batch)"%(gstep, args["last_step"],
+                                                                                     train_loss/float(train_batches),
+                                                                                     train_time/float(train_batches)))
+                                                                                     
+            #reinit iterator for next round
+            sess.run(iterator_train_init_op, feed_dict=feed_dict_train)
+        
+            #reset counters
+            train_loss=0.
+            train_batches=0
+            train_time=0
+        
+            #compute validation loss:
+            #reset variables
+            validation_loss=0.
+            validation_batches=0
             
-                #compute validation loss:
-                #reset variables
-                validation_loss=0.
-                validation_batches=0
+            #reinit the validation iterator
+            sess.run(iterator_validation_init_op, feed_dict=feed_dict_validation)
+            
+            #iterate over validation set
+            while True:
                 
-                #get global step:
-                gstep = sess.run([global_step])
-                
-                #iterate over batches
-                while True:
+                try:
+                    start_time = time.time()
+                    #compute loss
+                    if args['create_summary']:
+                        summary, tmp_loss, _, _ = sess.run([validation_summary, loss_eval, acc_update, auc_update],
+                                                            feed_dict=feed_dict_validation)
+                    else:
+                        tmp_loss, _, _ = sess.run([loss_eval, acc_update, auc_update], feed_dict=feed_dict_validation)
+            
+                    #add loss
+                    validation_loss += tmp_loss[0]
+                    validation_batches += 1
                     
-                    try:
-                        start_time = time.time()
-                        #compute loss
-                        if args['create_summary']:
-                            summary, tmp_loss, _, _ = sess.run([validation_summary, loss_eval, acc_update, auc_update],
-                                                                feed_dict=feed_dict_validation)
-                        else:
-                            tmp_loss, _, _ = sess.run([loss_avg_fn, acc_update, auc_update], feed_dict=feed_dict_validation)
-                
-                        #add loss
-                        validation_loss += tmp_loss[0]
-                        validation_batches += 1
-                        
-                    except:
-                        if args["is_chief"]:
-                            print(time.time(),"COMPLETED: global step %d, average validation loss %g"%(gstep, validation_loss/float(validation_batches)))
-                            validation_accuracy = sess.run(acc_eval)
-                            print(time.time(),"COMPLETED: global step %d, average validation accu %g"%(gstep, validation_accuracy))
-                            validation_auc = sess.run(auc_eval)
-                            print(time.time(),"COMPLETED: global step %d, average validation auc %g"%(gstep, validation_auc))
+                except:
+                    if args["is_chief"]:
+                        print(time.time(),"COMPLETED: global step %d (%d), average validation loss %g"%(gstep, args["last_step"], validation_loss/float(validation_batches)))
+                        validation_accuracy = sess.run(acc_eval)
+                        print(time.time(),"COMPLETED: global step %d (%d), average validation accu %g"%(gstep, args["last_step"], validation_accuracy))
+                        validation_auc = sess.run(auc_eval)
+                        print(time.time(),"COMPLETED: global step %d (%d), average validation auc %g"%(gstep, args["last_step"], validation_auc))
+                    break
 
 
 def main():
@@ -302,6 +310,7 @@ def main():
     if not args['dummy_data']:
         #training files
         trainfiles = [args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if 'train' in x and (x.endswith('.h5') or x.endswith('.hdf5'))]
+        trainfiles = trainfiles[:2]
         trainset = bc.DataSet(trainfiles,args['num_workers'],args['task_index'],split_filelist=True,split_file=False,data_format=args["conv_params"]['data_format'])
         
         #validation files
@@ -319,14 +328,13 @@ def main():
                                                   output_shapes = (args['input_shape'], (1), (1), (1), (1)))
     dataset_train = dataset_train.prefetch(args['train_batch_size_per_node'])
     dataset_train = dataset_train.apply(tf.contrib.data.batch_and_drop_remainder(args['train_batch_size_per_node']))
-    #only supported in tf 1.9 mand higher!
-    #dataset_train = dataset_train.batch(args['train_batch_size_per_node'], drop_remainder=True)
-    dataset_train = dataset_train.repeat()
+    dataset_train = dataset_train.repeat(1)
     #do some weight-preprocessing
     #dataset_train = dataset_train.map(lambda im,lb,wg,nw,ps: (im, lb, wg, nw, ps), num_parallel_calls=2)
     iterator_train = dataset_train.make_initializable_iterator()
     iterator_train_handle_string = iterator_train.string_handle()
-    iterator_train_init_op = iterator_train.make_initializer(dataset_train)
+    iterator_train_init_op = variables['iterator_'].make_initializer(dataset_train)
+    
     
     #validation
     dataset_validation = tf.data.Dataset.from_generator(validationset.next, 
@@ -334,20 +342,18 @@ def main():
                                                         output_shapes = (args['input_shape'], (1), (1), (1), (1)))
     dataset_validation = dataset_validation.prefetch(args['validation_batch_size_per_node'])
     dataset_validation = dataset_validation.apply(tf.contrib.data.batch_and_drop_remainder(args['validation_batch_size_per_node']))
-    #only supported in tf 1.9 and higher
-    #dataset_validation = dataset_validation.batch(args['validation_batch_size_per_node'], drop_remainder=True)
     dataset_validation = dataset_validation.repeat(1)
     #do some weight-preprocessing
     #dataset_validation = dataset_validation.map(lambda im,lb,wg,nw,ps: (im, lb, wg, nw, ps), num_parallel_calls=2)
     iterator_validation = dataset_validation.make_initializable_iterator()
     iterator_validation_handle_string = iterator_validation.string_handle()
-    iterator_validation_init_op = iterator_validation.make_initializer(dataset_validation)
+    iterator_validation_init_op = variables['iterator_'].make_initializer(dataset_validation)
     
     #Determine stopping point, i.e. compute last_step:
     args["steps_per_epoch"] = args["trainsamples"] // (args["train_batch_size_per_node"] * args["num_workers"])
     args["last_step"] = args["steps_per_epoch"] * args["num_epochs"]
     if args["is_chief"]:
-        print("Stopping after %d global steps"%(args["last_step"]))
+        print("Stopping after %d global steps, doing %d steps per epoch"%(args["last_step"],args["steps_per_epoch"]))
         
         #set up file infrastructure
         if not os.path.isdir(args['logpath']):
@@ -411,9 +417,6 @@ def main():
             
         #init iterator handle
         iterator_train_handle, iterator_validation_handle = sess.run([iterator_train_handle_string, iterator_validation_handle_string])
-        #init iterators
-        sess.run(iterator_train_init_op, feed_dict={variables['iterator_handle_']: iterator_train_handle})
-        sess.run(iterator_validation_init_op, feed_dict={variables['iterator_handle_']: iterator_validation_handle})
         
         #restore weights belonging to graph
         if not args['restart'] and args["is_chief"]:
@@ -446,7 +449,7 @@ def main():
         
         #do the training loop
         total_time = time.time()
-        train_loop(sess, ops, args, feed_dict_train, feed_dict_validation)
+        train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterator_validation_init_op, feed_dict_validation)
         total_time -= time.time()
         if args["is_chief"]:
             print("FINISHED Training. Total time %g"%(total_time))
