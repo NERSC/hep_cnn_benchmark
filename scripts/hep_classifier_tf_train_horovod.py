@@ -161,9 +161,9 @@ def evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_valida
     validation_accuracy, validation_auc = sess.run([ops["acc_eval"], ops["auc_eval"]])
     if args["is_chief"]:
         tstamp = time.time()
-        print(tstamp,"EVALUATION"+prefix+": step %d (%d), average loss %.6f"%(gstep, args["last_step"], validation_loss/float(validation_batches)))
-        print(tstamp,"EVALUATION"+prefix+": step %d (%d), average accu %.6f"%(gstep, args["last_step"], validation_accuracy))
-        print(tstamp,"EVALUATION"+prefix+": step %d (%d), average auc %.6f"%(gstep, args["last_step"], validation_auc))
+        print("%.2f EVALUATION"+prefix+": step %d (%d), average loss %.6f"%(tstamp, gstep, args["last_step"], validation_loss/float(validation_batches)))
+        print("%.2f EVALUATION"+prefix+": step %d (%d), average accu %.6f"%(tstamp, gstep, args["last_step"], validation_accuracy))
+        print("%.2f EVALUATION"+prefix+": step %d (%d), average auc %.6f"%(tstamp, gstep, args["last_step"], validation_auc))
 
 
 def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterator_validation_init_op, feed_dict_validation):
@@ -212,7 +212,8 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
             #determine if we give a short update:
             if gstep%args['display_interval']==0:
                 if args["is_chief"]:
-                    print(time.time(),"TRAINING REPORT: step %d (%d), average loss %.6f (%.3f sec/batch)"%(gstep, args["last_step"],
+                    tstamp = time.time()
+                    print("%.2f TRAINING REPORT: step %d (%d), average loss %.6f (%.3f sec/batch)"%(tstamp, gstep, args["last_step"],
                                                                                                         train_loss/float(train_batches),
                                                                                                         train_time/float(train_batches)))
                 train_batches = 0
@@ -431,9 +432,7 @@ def main():
         
         #restore weights belonging to graph
         if not args['restart'] and args["is_chief"]:
-            last_model = tf.train.latest_checkpoint(args['modelpath'])
-            print("Restoring model %s.",last_model)
-            model_saver.restore(sess,last_model)
+            bc.load_model(sess, model_saver, args['modelpath'])
             
         #broadcast model
         sess.run(init_bcast)
