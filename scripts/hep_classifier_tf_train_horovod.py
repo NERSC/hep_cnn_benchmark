@@ -161,9 +161,9 @@ def evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_valida
     validation_accuracy, validation_auc = sess.run([ops["acc_eval"], ops["auc_eval"]])
     if args["is_chief"]:
         tstamp = time.time()
-        print(tstamp,"EVALUATION",prefix,": step %d (%d), average loss %.6f"%(gstep, args["last_step"], validation_loss/float(validation_batches)))
-        print(tstamp,"EVALUATION",prefix,": step %d (%d), average accu %.6f"%(gstep, args["last_step"], validation_accuracy))
-        print(tstamp,"EVALUATION",prefix,": step %d (%d), average auc %.6f"%(gstep, args["last_step"], validation_auc))
+        print(tstamp,"EVALUATION"+prefix+": step %d (%d), average loss %.6f"%(gstep, args["last_step"], validation_loss/float(validation_batches)))
+        print(tstamp,"EVALUATION"+prefix+": step %d (%d), average accu %.6f"%(gstep, args["last_step"], validation_accuracy))
+        print(tstamp,"EVALUATION"+prefix+": step %d (%d), average auc %.6f"%(gstep, args["last_step"], validation_auc))
 
 
 def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterator_validation_init_op, feed_dict_validation):
