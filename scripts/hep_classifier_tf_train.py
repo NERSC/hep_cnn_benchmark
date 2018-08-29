@@ -69,7 +69,7 @@ import tensorflow.contrib.keras as tfk
 import slurm_tf_helper.setup_clusters as sc
 
 #housekeeping
-import networks.binary_classifier_tf as bc
+import networks.cnn.binary_classifier_tf as bc
 
 # Useful Functions
 

@@ -67,7 +67,7 @@ import tensorflow.contrib.keras as tfk
 import horovod.tensorflow as hvd
 
 #housekeeping
-import networks.binary_classifier_tf as bc
+import networks.cnn.binary_classifier_tf as bc
 
 #debugging
 #tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
