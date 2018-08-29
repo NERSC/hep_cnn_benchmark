@@ -253,18 +253,29 @@ class DummySet(object):
 
 
 #load model wrapper
-def load_model(sess, saver, checkpoint_dir):
+def load_model(sess, saver, checkpoint_dir, checkpoint_index=None):
     print("Looking for model in {}".format(checkpoint_dir))
     #get list of checkpoints
     checkpoints = [x.replace(".index","") for x in os.listdir(checkpoint_dir) if x.startswith("model.ckpt") and x.endswith(".index")]
     checkpoints = sorted([(int(x.split("-")[1]),x) for x in checkpoints], key=lambda tup: tup[0])
-    latest_ckpt = os.path.join(checkpoint_dir,checkpoints[-1][1])
-    print("Restoring model {}".format(latest_ckpt))
+    
+    #select whioch checkpoint to restore
+    if not checkpoint_index:
+        restore_ckpt = os.path.join(checkpoint_dir,checkpoints[-1][1])
+    else:
+        restore_ckpt = None
+        chk = {x[0]:x[1] for x in checkpoints}
+        if checkpoint_index in chk:
+            restore_ckpt = chk[restore_ckpt]
+    
+    #attempt to restore
+    print("Restoring model {}".format(restore_ckpt))
     try:
-        saver.restore(sess, latest_ckpt)
+        saver.restore(sess, restore_ckpt)
         print("Model restoration successful.")
     except:
-        print("Loading model failed, starting fresh.")
+        print("Loading model {rc} failed, exiting.".fomat(rc=restore_ckpt))
+        os.sys.exit(1)
 
 
 # ## HEP CNN Model
@@ -308,6 +319,7 @@ def build_cnn_model(args):
     variables['labels_'] = next_elem[1]
     variables['normweights_'] = next_elem[2]
     variables['weights_'] = next_elem[3]
+    variables['psr_'] = next_elem[4]
     variables['keep_prob_'] = tf.placeholder(dtype)
     
     #empty network:
