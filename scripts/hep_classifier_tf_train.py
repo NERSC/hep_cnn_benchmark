@@ -324,9 +324,9 @@ def main():
         #training
         h5_train_gen = utils.hdf5_generator(shuffle=True, data_format=args["conv_params"]['data_format'])
         dataset_train = tf.data.Dataset.from_tensor_slices(trainfiles)
-        dataset_train = dataset_train.shuffle(len(trainfiles), seed=shuffle_seed)
         if args['num_workers'] > 1:
             dataset_train = dataset_train.shard(args['num_workers'], args["task_index"])
+        dataset_train = dataset_train.shuffle(len(trainfiles) // args['num_workers'], seed=shuffle_seed)
         dataset_train = dataset_train.interleave(lambda filename: tf.data.Dataset.from_generator(h5_train_gen, \
                                                                             output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), \
                                                                             output_shapes = (args['input_shape'], (), (), (), ()), \
@@ -343,9 +343,9 @@ def main():
         #validation
         h5_validation_gen = utils.hdf5_generator(shuffle=False, data_format=args["conv_params"]['data_format'])
         dataset_validation = tf.data.Dataset.from_tensor_slices(validationfiles)
-        dataset_validation = dataset_validation.shuffle(len(validationfiles), seed=shuffle_seed)
         if args['num_workers'] > 1:
             dataset_validation = dataset_validation.shard(args['num_workers'], args["task_index"])
+        dataset_validation = dataset_validation.shuffle(len(validationfiles) // args['num_workers'], seed=shuffle_seed)
         dataset_validation = dataset_validation.interleave(lambda filename: tf.data.Dataset.from_generator(h5_validation_gen, \
                                                                                         output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), \
                                                                                         output_shapes = (args['input_shape'], (), (), (), ()), \
