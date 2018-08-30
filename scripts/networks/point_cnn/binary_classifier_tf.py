@@ -88,6 +88,24 @@ class DataSet(object):
         self._file_index = 0
         self._data_index = 0
     
+    def transform_calohits_to_pointcloud(self, eta, phi, energy, emfrac):
+        #perform sampling with replacement
+        choice = np.random.choice(eta.shape[0], self._num_calo_hits)
+        eta = np.expand_dims(eta[choice], axis=1)
+        phi = np.expand_dims(phi[choice], axis=1)
+        energy = np.expand_dims(energy[choice], axis=1)
+        emfrac = np.expand_dims(emfrac[choice], axis=1)
+        result=np.concatenate([eta, phi, energy, emfrac], axis=1)
+        return result
+        
+    def transform_tracks_to_pointcloud(self, eta, phi):
+        #perform sampling with replacement
+        choice = np.random.choice(eta.shape[0], self._num_tracks)
+        eta = np.expand_dims(eta[choice], axis=1)
+        phi = np.expand_dims(phi[choice], axis=1)
+        result=np.concatenate([eta, phi], axis=1)
+        return result
+    
     def load_next_file(self):
         #only load a new file if there are more than one file in the list:
         if self._num_files > 1 or not self._initialized:
@@ -103,22 +121,20 @@ class DataSet(object):
             self._tree.dtype.names = self._branch_dict.values()
             self._initialized = True
         
-            ##set number of samples
-            #self._num_examples = self._labels.shape[0]
-            #
-            ##reshape labels and weights
-            #self._labels = np.expand_dims(self._labels, axis=1).astype(np.int32, copy=False)
-            #self._normweights = np.expand_dims(self._normweights, axis=1)
-            #self._weights = np.expand_dims(self._weights, axis=1)
-            #self._psr = np.expand_dims(self._psr, axis=1)
-            #
-            ##transpose images if data format is NHWC
-            #if self._data_format == "NHWC":
-            #    #transform for NCHW to NHWC
-            #    self._images = np.transpose(self._images, (0,2,3,1))
+            #set number of samples
+            self._num_examples = self._tree['clusEta'].shape[0]
         
-        print(dir(self._tree))
+        #compute pointcloud
+        #em hits
+        calohits_bg = map(self.transform_calohits_to_pointcloud, self._tree['clusEta'], self._tree['clusPhi'], self._tree['clusE'], self._tree['clusEM'])
+        calohits_bg = np.stack(calohits_bg, axis=0)
+        #tracks
+        tracks_bg = map(self.transform_tracks_to_pointcloud, self._tree['trackEta'], self._tree['trackPhi'])
+        tracks_bg = np.stack(tracks_bg, axis=0)
+        #labels
+        labels_bg = np.zeros((self._num_examples))
         
+        print(points_bg.shape)
         #if self._shuffle:
         #  #create permutation
         #  perm = np.arange(self._num_examples)
@@ -130,19 +146,21 @@ class DataSet(object):
         #  self._weights = self._weights[perm]
         #  self._psr = self._psr[perm]
         
-    def __init__(self, filelist, num_tasks=1, taskid=0, split_filelist=False, shuffle=False, max_events=None):
+    def __init__(self, filelist, num_calo_hits, num_tracks, num_tasks=1, taskid=0, split_filelist=False, shuffle=False, max_events=None):
         """Construct DataSet"""
         #general dict for extracting data
         self._branch_dict = {
             'Tower.Eta' : 'clusEta',
             'Tower.Phi' : 'clusPhi',
-            'Tower.E' : 'clusE',
+            'Tower.E'   : 'clusE',
             'Tower.Eem' : 'clusEM',
             'Track.Eta' : 'trackEta',
             'Track.Phi' : 'trackPhi'
         }
         
         #multinode stuff
+        self._num_calo_hits = num_calo_hits
+        self._num_tracks = num_tracks
         self._num_tasks = num_tasks
         self._taskid = taskid
         self._split_filelist = split_filelist

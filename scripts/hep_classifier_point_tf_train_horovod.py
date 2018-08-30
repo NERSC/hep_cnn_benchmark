@@ -307,12 +307,14 @@ def main():
     #    print("Setting up iterators")
         
     #training files
-    trainfiles = [os.path.join(args['inputpath'],"training","background",x) for x in os.listdir(os.path.join(args['inputpath'],"training","background")) if x and x.endswith('.root')]
-    trainset = bc.DataSet(trainfiles,args['num_workers'],args['task_index'],split_filelist=True,shuffle=True)
+    trainfiles_bg = [os.path.join(args['inputpath'],"training","background",x) for x in os.listdir(os.path.join(args['inputpath'],"training","background")) if x and x.endswith('.root')]
+    trainfiles_sg = [os.path.join(args['inputpath'],"training","signal",x) for x in os.listdir(os.path.join(args['inputpath'],"training","signal")) if x and x.endswith('.root')]
+    trainset = bc.DataSet(trainfiles_sg, args['num_calorimeter_hits'], args['num_tracks'], args['num_workers'], args['task_index'], split_filelist=True, shuffle=True)
         
     #validation files
-    validationfiles = [os.path.join(args['inputpath'],"validation","background",x) for x in os.listdir(os.path.join(args['inputpath'],"validation","background")) if x and x.endswith('.root')]
-    validationset = bc.DataSet(validationfiles,args['num_workers'],args['task_index'],split_filelist=True,shuffle=True)
+    validationfiles_bg = [os.path.join(args['inputpath'],"validation","background",x) for x in os.listdir(os.path.join(args['inputpath'],"validation","background")) if x and x.endswith('.root')]
+    validationfiles_sg = [os.path.join(args['inputpath'],"validation","signal",x) for x in os.listdir(os.path.join(args['inputpath'],"validation","signal")) if x and x.endswith('.root')]
+    validationset = bc.DataSet(validationfiles_bg, args['num_calorimeter_hits'], args['num_tracks'], args['num_workers'], args['task_index'], split_filelist=True, shuffle=True)
     
     ##create tensorflow datasets
     ##training
