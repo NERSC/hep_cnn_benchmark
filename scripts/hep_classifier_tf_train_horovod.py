@@ -67,6 +67,7 @@ import tensorflow.contrib.keras as tfk
 import horovod.tensorflow as hvd
 
 #housekeeping
+import networks.utils as utils
 import networks.cnn.binary_classifier_tf as bc
 
 #debugging
@@ -77,7 +78,6 @@ import networks.cnn.binary_classifier_tf as bc
 hvd.init()
 
 # Useful Functions
-
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, help="specify a config file in json format")
@@ -314,26 +314,25 @@ def main():
     if args["is_chief"]:
         print("Setting up iterators")
         
-    trainset=None
-    validationset=None
-    if not args['dummy_data']:
-        #training files
-        trainfiles = [args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if 'train' in x and (x.endswith('.h5') or x.endswith('.hdf5'))]
-        trainset = bc.DataSet(trainfiles,args['num_workers'],args['task_index'],split_filelist=True,split_file=False,shuffle=True,data_format=args["conv_params"]['data_format'])
+    #training files
+    trainfiles = sorted([args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if 'train' in x and (x.endswith('.h5') or x.endswith('.hdf5'))])
         
-        #validation files
-        validationfiles = [args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if 'val' in x and (x.endswith('.h5') or x.endswith('.hdf5'))]
-        validationset = bc.DataSet(validationfiles,args['num_workers'],args['task_index'],split_filelist=True,split_file=False,shuffle=True,data_format=args["conv_params"]['data_format'])
-    else:
-        #training files and validation files are just dummy sets then
-        trainset = bc.DummySet(input_shape=args['input_shape'], samples_per_epoch=10000, task_index=args['task_index'])
-        validationset = bc.DummySet(input_shape=args['input_shape'], samples_per_epoch=1000, task_index=args['task_index'])
+    #validation files
+    validationfiles = sorted([args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if 'val' in x and (x.endswith('.h5') or x.endswith('.hdf5'))])
     
     #create tensorflow datasets
+    #use common seed so that each node has the same order and it can be sharded appropriately
+    shuffle_seed = 12345
     #training
-    dataset_train = tf.data.Dataset.from_generator(trainset.next, 
-                                                  output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), 
-                                                  output_shapes = (args['input_shape'], (1), (1), (1), (1)))
+    h5_train_gen = utils.hdf5_generator(shuffle=True, data_format=args["conv_params"]['data_format'])
+    dataset_train = tf.data.Dataset.from_tensor_slices(trainfiles)
+    dataset_train = dataset_train.shuffle(len(trainfiles), seed=shuffle_seed)
+    if args['num_workers'] > 1:
+        dataset_train = dataset_train.shard(args['num_workers'], args["task_index"])
+    dataset_train = dataset_train.interleave(lambda filename: tf.data.Dataset.from_generator(h5_train_gen, \
+                                                                        output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), \
+                                                                        output_shapes = (args['input_shape'], (), (), (), ()), \
+                                                                        args=[filename]), cycle_length = 4, block_length = 1)
     dataset_train = dataset_train.prefetch(args['train_batch_size_per_node'])
     dataset_train = dataset_train.apply(tf.contrib.data.batch_and_drop_remainder(args['train_batch_size_per_node']))
     dataset_train = dataset_train.repeat(1)
@@ -343,11 +342,16 @@ def main():
     iterator_train_handle_string = iterator_train.string_handle()
     iterator_train_init_op = iterator_train.make_initializer(dataset_train)
     
-    
     #validation
-    dataset_validation = tf.data.Dataset.from_generator(validationset.next, 
-                                                        output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), 
-                                                        output_shapes = (args['input_shape'], (1), (1), (1), (1)))
+    h5_validation_gen = utils.hdf5_generator(shuffle=False, data_format=args["conv_params"]['data_format'])
+    dataset_validation = tf.data.Dataset.from_tensor_slices(validationfiles)
+    dataset_validation = dataset_validation.shuffle(len(validationfiles), seed=shuffle_seed)
+    if args['num_workers'] > 1:
+        dataset_validation = dataset_validation.shard(args['num_workers'], args["task_index"])
+    dataset_validation = dataset_validation.interleave(lambda filename: tf.data.Dataset.from_generator(h5_validation_gen, \
+                                                                                    output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), \
+                                                                                    output_shapes = (args['input_shape'], (), (), (), ()), \
+                                                                                    args=[filename]), cycle_length = 4, block_length = 1)
     dataset_validation = dataset_validation.prefetch(args['validation_batch_size_per_node'])
     dataset_validation = dataset_validation.apply(tf.contrib.data.batch_and_drop_remainder(args['validation_batch_size_per_node']))
     dataset_validation = dataset_validation.repeat(1)
