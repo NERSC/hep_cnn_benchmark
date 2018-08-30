@@ -71,6 +71,12 @@ import networks.binary_classifier_tf as bc
 #sklearn stuff
 from sklearn import metrics
 
+#matplotlib
+import matplotlib
+matplotlib.use("Agg")
+from matplotlib import pyplot as plt
+
+
 # Useful Functions
 def plot_roc_curve(predictions, labels, weights, psr, outputdir):
     fpr, tpr, _ = metrics.roc_curve(labels, predictions, pos_label=1, sample_weight=weights)
@@ -123,7 +129,7 @@ def evaluate_loop(sess, ops, args, iterator_test_init_op, feed_dict_test, prefix
         
         try:
             #compute loss
-            pred, labels, weights, psr, tmp_loss, _, _ = sess.run([ops["prediction_eval"], \
+            pred, label, weight, psr, tmp_loss, _, _ = sess.run([ops["prediction_eval"], \
                                                                      ops["label_eval"], \
                                                                      ops["weight_eval"], \
                                                                      ops["psr_eval"], \
@@ -133,8 +139,8 @@ def evaluate_loop(sess, ops, args, iterator_test_init_op, feed_dict_test, prefix
                                                                      feed_dict=feed_dict_test)
             
             predlist.append(pred[:,1])
-            labellist.append(labels)
-            weightlist.append(weights)
+            labellist.append(label)
+            weightlist.append(weight)
             psrlist.append(psr)
     
             #add loss
@@ -155,7 +161,7 @@ def evaluate_loop(sess, ops, args, iterator_test_init_op, feed_dict_test, prefix
     preds = np.concatenate(predlist, axis=0)
     labels = np.concatenate(labellist, axis=0)
     weights = np.concatenate(weightlist, axis=0)
-    psrs = np.concatenate(psr, axis=0)
+    psrs = np.concatenate(psrlist, axis=0)
     plot_roc_curve(preds, labels, weights, psrs, args["plotpath"])
 
 
