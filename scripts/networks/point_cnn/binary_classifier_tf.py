@@ -52,224 +52,224 @@ import tensorflow.contrib.keras as tfk
 
 # In[3]:
 
-class suppress_stdout_stderr(object):
-    """
-    A context manager for doing a "deep suppression" of stdout and stderr in
-    Python, i.e. will suppress all print, even if the print originates in a
-    compiled C/Fortran sub-function.
-       This will not suppress raised exceptions, since exceptions are printed
-    to stderr just before a script exits, and after the context manager has
-    exited (at least, I think that is why it lets exceptions through).
-    """
-    def __init__(self):
-        # Open a pair of null files
-        self.null_fds =  [os.open(os.devnull,os.O_RDWR) for x in range(2)]
-        # Save the actual stdout (1) and stderr (2) file descriptors.
-        self.save_fds = (os.dup(1), os.dup(2))
-
-    def __enter__(self):
-        # Assign the null pointers to stdout and stderr.
-        os.dup2(self.null_fds[0],1)
-        os.dup2(self.null_fds[1],2)
-
-    def __exit__(self, *_):
-        # Re-assign the real stdout/stderr back to (1) and (2)
-        os.dup2(self.save_fds[0],1)
-        os.dup2(self.save_fds[1],2)
-        # Close the null files
-        os.close(self.null_fds[0])
-        os.close(self.null_fds[1])
-
-
-class DataSet(object):
-    
-    def reset(self):
-        self._epochs_completed = 0
-        self._file_index = 0
-        self._data_index = 0
-    
-    def transform_calohits_to_pointcloud(self, eta, phi, energy, emfrac):
-        #perform sampling with replacement
-        choice = np.random.choice(eta.shape[0], self._num_calo_hits)
-        eta = np.expand_dims(eta[choice], axis=1)
-        phi = np.expand_dims(phi[choice], axis=1)
-        energy = np.expand_dims(energy[choice], axis=1)
-        emfrac = np.expand_dims(emfrac[choice], axis=1)
-        result=np.concatenate([eta, phi, energy, emfrac], axis=1)
-        return result
-        
-    def transform_tracks_to_pointcloud(self, eta, phi):
-        #perform sampling with replacement
-        choice = np.random.choice(eta.shape[0], self._num_tracks)
-        eta = np.expand_dims(eta[choice], axis=1)
-        phi = np.expand_dims(phi[choice], axis=1)
-        result=np.concatenate([eta, phi], axis=1)
-        return result
-    
-    def load_next_file(self):
-        #only load a new file if there are more than one file in the list:
-        if self._num_files > 1 or not self._initialized:
-            try:
-                with suppress_stdout_stderr():
-                    self._tree = rnp.root2array(self._filelist[self._file_index], treename='Delphes',
-                                          branches=self._branch_dict.keys(), stop=self._max_events,
-                                          warn_missing_tree=True)
-            except EnvironmentError:
-                raise EnvironmentError("Cannot open file "+self._filelist[self._file_index])
-            
-            # Rename the branches
-            self._tree.dtype.names = self._branch_dict.values()
-            self._initialized = True
-        
-            #set number of samples
-            self._num_examples = self._tree['clusEta'].shape[0]
-        
-        #compute pointcloud
-        #em hits
-        calohits_bg = map(self.transform_calohits_to_pointcloud, self._tree['clusEta'], self._tree['clusPhi'], self._tree['clusE'], self._tree['clusEM'])
-        calohits_bg = np.stack(calohits_bg, axis=0)
-        #tracks
-        tracks_bg = map(self.transform_tracks_to_pointcloud, self._tree['trackEta'], self._tree['trackPhi'])
-        tracks_bg = np.stack(tracks_bg, axis=0)
-        #labels
-        labels_bg = np.zeros((self._num_examples))
-        
-        print(points_bg.shape)
-        #if self._shuffle:
-        #  #create permutation
-        #  perm = np.arange(self._num_examples)
-        #  np.random.shuffle(perm)
-        #  #shuffle
-        #  self._images = self._images[perm]
-        #  self._labels = self._labels[perm]
-        #  self._normweights = self._normweights[perm]
-        #  self._weights = self._weights[perm]
-        #  self._psr = self._psr[perm]
-        
-    def __init__(self, filelist, num_calo_hits, num_tracks, num_tasks=1, taskid=0, split_filelist=False, shuffle=False, max_events=None):
-        """Construct DataSet"""
-        #general dict for extracting data
-        self._branch_dict = {
-            'Tower.Eta' : 'clusEta',
-            'Tower.Phi' : 'clusPhi',
-            'Tower.E'   : 'clusE',
-            'Tower.Eem' : 'clusEM',
-            'Track.Eta' : 'trackEta',
-            'Track.Phi' : 'trackPhi'
-        }
-        
-        #multinode stuff
-        self._num_calo_hits = num_calo_hits
-        self._num_tracks = num_tracks
-        self._num_tasks = num_tasks
-        self._taskid = taskid
-        self._split_filelist = split_filelist
-        self._shuffle = shuffle
-        self._max_events = max_events
-        
-        #split filelist?
-        self._num_files = len(filelist)
-        start = 0
-        end = self._num_files
-        if self._split_filelist:
-            self._num_files = int(np.floor(len(filelist)/float(self._num_tasks)))
-            start = self._taskid * self._num_files
-            end = start + self._num_files
-        
-        assert self._num_files > 0, ('filelist is empty')
-        
-        self._filelist = filelist[start:end]
-        self._initialized = False
-        self.reset()
-        self.load_next_file()
-
-    @property
-    def num_files(self):
-        return self._num_files
-    
-    @property
-    def num_samples(self):
-        return self._num_examples
-
-    @property
-    def epochs_completed(self):
-        return self._epochs_completed
-    
-    #def next(self):
-    #    for i in itertools.count(1): 
-    #        try:
-    #            images, labels, normweights, weights, psr = self.next_batch(1)
-    #            
-    #            #squeeze dims:
-    #            images = np.squeeze(images, axis=0)
-    #            labels = np.squeeze(labels, axis=0)
-    #            normweights = np.squeeze(normweights, axis=0)
-    #            weights = np.squeeze(weights, axis=0)
-    #            psr = np.squeeze(psr, axis=0)
-    #            
-    #            yield images, labels, normweights, weights, psr
-    #        except:
-    #            return
-    #
-    #def next_batch(self, batch_size):
-    #    """Return the next `batch_size` examples from this data set."""
-    #    start = self._data_index
-    #    self._data_index += batch_size
-    #    end=int(np.min([self._num_examples,self._data_index]))
-    #    
-    #    #take what is there
-    #    images = self._images[start:end]
-    #    labels = self._labels[start:end]
-    #    normweights = self._normweights[start:end]
-    #    weights = self._weights[start:end]
-    #    psr = self._psr[start:end]
-    #    
-    #    if self._data_index > self._num_examples:
-    #        #remains:
-    #        remaining = self._data_index-self._num_examples
-    #        
-    #        #first, reset data_index and increase file index:
-    #        self._data_index=0
-    #        self._file_index+=1
-    #        
-    #        #check if we are at the end of the file list
-    #        if self._file_index >= self._num_files:
-    #            #epoch is finished
-    #            self._epochs_completed += 1
-    #            #reset file index and shuffle list
-    #            self._file_index=0
-    #            if self._shuffle:
-    #                np.random.shuffle(self._filelist)
-    #            return
-    #        
-    #        #load the next file
-    #        self.load_next_file()
-    #        #assert batch_size <= self._num_examples
-    #        #call rerucsively
-    #        tmpimages,tmplabels,tmpnormweights,tmpweights,tmppsr = self.next_batch(remaining)
-    #        #join
-    #        images = np.concatenate([images,tmpimages],axis=0)    
-    #        labels = np.concatenate([labels,tmplabels],axis=0)
-    #        normweights = np.concatenate([normweights,tmpnormweights],axis=0)
-    #        weights = np.concatenate([weights,tmpweights],axis=0)
-    #        psr = np.concatenate([psr,tmppsr],axis=0)
-    #    
-    #    return images, labels, normweights, weights, psr
-
-
-#load model wrapper
-def load_model(sess, saver, checkpoint_dir):
-    print("Looking for model in {}".format(checkpoint_dir))
-    #get list of checkpoints
-    checkpoints = [x.replace(".index","") for x in os.listdir(checkpoint_dir) if x.startswith("model.ckpt") and x.endswith(".index")]
-    checkpoints = sorted([(int(x.split("-")[1]),x) for x in checkpoints], key=lambda tup: tup[0])
-    latest_ckpt = os.path.join(checkpoint_dir,checkpoints[-1][1])
-    print("Restoring model {}".format(latest_ckpt))
-    try:
-        saver.restore(sess, latest_ckpt)
-        print("Model restoration successful.")
-    except:
-        print("Loading model failed, starting fresh.")
+#class suppress_stdout_stderr(object):
+#    """
+#    A context manager for doing a "deep suppression" of stdout and stderr in
+#    Python, i.e. will suppress all print, even if the print originates in a
+#    compiled C/Fortran sub-function.
+#       This will not suppress raised exceptions, since exceptions are printed
+#    to stderr just before a script exits, and after the context manager has
+#    exited (at least, I think that is why it lets exceptions through).
+#    """
+#    def __init__(self):
+#        # Open a pair of null files
+#        self.null_fds =  [os.open(os.devnull,os.O_RDWR) for x in range(2)]
+#        # Save the actual stdout (1) and stderr (2) file descriptors.
+#        self.save_fds = (os.dup(1), os.dup(2))
+#
+#    def __enter__(self):
+#        # Assign the null pointers to stdout and stderr.
+#        os.dup2(self.null_fds[0],1)
+#        os.dup2(self.null_fds[1],2)
+#
+#    def __exit__(self, *_):
+#        # Re-assign the real stdout/stderr back to (1) and (2)
+#        os.dup2(self.save_fds[0],1)
+#        os.dup2(self.save_fds[1],2)
+#        # Close the null files
+#        os.close(self.null_fds[0])
+#        os.close(self.null_fds[1])
+#
+#
+#class DataSet(object):
+#    
+#    def reset(self):
+#        self._epochs_completed = 0
+#        self._file_index = 0
+#        self._data_index = 0
+#    
+#    def transform_calohits_to_pointcloud(self, eta, phi, energy, emfrac):
+#        #perform sampling with replacement
+#        choice = np.random.choice(eta.shape[0], self._num_calo_hits)
+#        eta = np.expand_dims(eta[choice], axis=1)
+#        phi = np.expand_dims(phi[choice], axis=1)
+#        energy = np.expand_dims(energy[choice], axis=1)
+#        emfrac = np.expand_dims(emfrac[choice], axis=1)
+#        result=np.concatenate([eta, phi, energy, emfrac], axis=1)
+#        return result
+#        
+#    def transform_tracks_to_pointcloud(self, eta, phi):
+#        #perform sampling with replacement
+#        choice = np.random.choice(eta.shape[0], self._num_tracks)
+#        eta = np.expand_dims(eta[choice], axis=1)
+#        phi = np.expand_dims(phi[choice], axis=1)
+#        result=np.concatenate([eta, phi], axis=1)
+#        return result
+#    
+#    def load_next_file(self):
+#        #only load a new file if there are more than one file in the list:
+#        if self._num_files > 1 or not self._initialized:
+#            try:
+#                with suppress_stdout_stderr():
+#                    self._tree = rnp.root2array(self._filelist[self._file_index], treename='Delphes',
+#                                          branches=self._branch_dict.keys(), stop=self._max_events,
+#                                          warn_missing_tree=True)
+#            except EnvironmentError:
+#                raise EnvironmentError("Cannot open file "+self._filelist[self._file_index])
+#            
+#            # Rename the branches
+#            self._tree.dtype.names = self._branch_dict.values()
+#            self._initialized = True
+#        
+#            #set number of samples
+#            self._num_examples = self._tree['clusEta'].shape[0]
+#        
+#        #compute pointcloud
+#        #em hits
+#        calohits_bg = map(self.transform_calohits_to_pointcloud, self._tree['clusEta'], self._tree['clusPhi'], self._tree['clusE'], self._tree['clusEM'])
+#        calohits_bg = np.stack(calohits_bg, axis=0)
+#        #tracks
+#        tracks_bg = map(self.transform_tracks_to_pointcloud, self._tree['trackEta'], self._tree['trackPhi'])
+#        tracks_bg = np.stack(tracks_bg, axis=0)
+#        #labels
+#        labels_bg = np.zeros((self._num_examples))
+#        
+#        print(points_bg.shape)
+#        #if self._shuffle:
+#        #  #create permutation
+#        #  perm = np.arange(self._num_examples)
+#        #  np.random.shuffle(perm)
+#        #  #shuffle
+#        #  self._images = self._images[perm]
+#        #  self._labels = self._labels[perm]
+#        #  self._normweights = self._normweights[perm]
+#        #  self._weights = self._weights[perm]
+#        #  self._psr = self._psr[perm]
+#        
+#    def __init__(self, filelist, num_calo_hits, num_tracks, num_tasks=1, taskid=0, split_filelist=False, shuffle=False, max_events=None):
+#        """Construct DataSet"""
+#        #general dict for extracting data
+#        self._branch_dict = {
+#            'Tower.Eta' : 'clusEta',
+#            'Tower.Phi' : 'clusPhi',
+#            'Tower.E'   : 'clusE',
+#            'Tower.Eem' : 'clusEM',
+#            'Track.Eta' : 'trackEta',
+#            'Track.Phi' : 'trackPhi'
+#        }
+#        
+#        #multinode stuff
+#        self._num_calo_hits = num_calo_hits
+#        self._num_tracks = num_tracks
+#        self._num_tasks = num_tasks
+#        self._taskid = taskid
+#        self._split_filelist = split_filelist
+#        self._shuffle = shuffle
+#        self._max_events = max_events
+#        
+#        #split filelist?
+#        self._num_files = len(filelist)
+#        start = 0
+#        end = self._num_files
+#        if self._split_filelist:
+#            self._num_files = int(np.floor(len(filelist)/float(self._num_tasks)))
+#            start = self._taskid * self._num_files
+#            end = start + self._num_files
+#        
+#        assert self._num_files > 0, ('filelist is empty')
+#        
+#        self._filelist = filelist[start:end]
+#        self._initialized = False
+#        self.reset()
+#        self.load_next_file()
+#
+#    @property
+#    def num_files(self):
+#        return self._num_files
+#    
+#    @property
+#    def num_samples(self):
+#        return self._num_examples
+#
+#    @property
+#    def epochs_completed(self):
+#        return self._epochs_completed
+#    
+#    #def next(self):
+#    #    for i in itertools.count(1): 
+#    #        try:
+#    #            images, labels, normweights, weights, psr = self.next_batch(1)
+#    #            
+#    #            #squeeze dims:
+#    #            images = np.squeeze(images, axis=0)
+#    #            labels = np.squeeze(labels, axis=0)
+#    #            normweights = np.squeeze(normweights, axis=0)
+#    #            weights = np.squeeze(weights, axis=0)
+#    #            psr = np.squeeze(psr, axis=0)
+#    #            
+#    #            yield images, labels, normweights, weights, psr
+#    #        except:
+#    #            return
+#    #
+#    #def next_batch(self, batch_size):
+#    #    """Return the next `batch_size` examples from this data set."""
+#    #    start = self._data_index
+#    #    self._data_index += batch_size
+#    #    end=int(np.min([self._num_examples,self._data_index]))
+#    #    
+#    #    #take what is there
+#    #    images = self._images[start:end]
+#    #    labels = self._labels[start:end]
+#    #    normweights = self._normweights[start:end]
+#    #    weights = self._weights[start:end]
+#    #    psr = self._psr[start:end]
+#    #    
+#    #    if self._data_index > self._num_examples:
+#    #        #remains:
+#    #        remaining = self._data_index-self._num_examples
+#    #        
+#    #        #first, reset data_index and increase file index:
+#    #        self._data_index=0
+#    #        self._file_index+=1
+#    #        
+#    #        #check if we are at the end of the file list
+#    #        if self._file_index >= self._num_files:
+#    #            #epoch is finished
+#    #            self._epochs_completed += 1
+#    #            #reset file index and shuffle list
+#    #            self._file_index=0
+#    #            if self._shuffle:
+#    #                np.random.shuffle(self._filelist)
+#    #            return
+#    #        
+#    #        #load the next file
+#    #        self.load_next_file()
+#    #        #assert batch_size <= self._num_examples
+#    #        #call rerucsively
+#    #        tmpimages,tmplabels,tmpnormweights,tmpweights,tmppsr = self.next_batch(remaining)
+#    #        #join
+#    #        images = np.concatenate([images,tmpimages],axis=0)    
+#    #        labels = np.concatenate([labels,tmplabels],axis=0)
+#    #        normweights = np.concatenate([normweights,tmpnormweights],axis=0)
+#    #        weights = np.concatenate([weights,tmpweights],axis=0)
+#    #        psr = np.concatenate([psr,tmppsr],axis=0)
+#    #    
+#    #    return images, labels, normweights, weights, psr
+#
+#
+##load model wrapper
+#def load_model(sess, saver, checkpoint_dir):
+#    print("Looking for model in {}".format(checkpoint_dir))
+#    #get list of checkpoints
+#    checkpoints = [x.replace(".index","") for x in os.listdir(checkpoint_dir) if x.startswith("model.ckpt") and x.endswith(".index")]
+#    checkpoints = sorted([(int(x.split("-")[1]),x) for x in checkpoints], key=lambda tup: tup[0])
+#    latest_ckpt = os.path.join(checkpoint_dir,checkpoints[-1][1])
+#    print("Restoring model {}".format(latest_ckpt))
+#    try:
+#        saver.restore(sess, latest_ckpt)
+#        print("Model restoration successful.")
+#    except:
+#        print("Loading model failed, starting fresh.")
 
 
 ## ## HEP PCNN Model
