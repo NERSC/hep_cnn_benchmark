@@ -74,21 +74,21 @@ class hdf5_generator():
 class root_generator():
     
     def transform_calohits_to_pointcloud(self, eta, phi, energy, emfrac):
-        #perform sampling with replacement
-        choice = np.random.choice(eta.shape[0], self._num_calorimeter_hits)
-        eta = np.expand_dims(eta[choice], axis=1)
-        phi = np.expand_dims(phi[choice], axis=1)
-        energy = np.expand_dims(energy[choice], axis=1)
-        emfrac = np.expand_dims(emfrac[choice], axis=1)
-        result=np.concatenate([eta, phi, energy, emfrac], axis=1)
+        #perform sampling with replacement, only if there are fewer points than requested points
+        choice = np.random.choice(eta.shape[0], self._num_calorimeter_hits, replace=(eta.shape[0] < self._num_calorimeter_hits))
+        eta = eta[choice]
+        phi = phi[choice]
+        energy = energy[choice]
+        emfrac = emfrac[choice]
+        result=np.stack([eta, phi, energy, emfrac], axis=1)
         return result
             
     def transform_tracks_to_pointcloud(self, eta, phi):
         #perform sampling with replacement
-        choice = np.random.choice(eta.shape[0], self._num_tracks)
-        eta = np.expand_dims(eta[choice], axis=1)
-        phi = np.expand_dims(phi[choice], axis=1)
-        result=np.concatenate([eta, phi], axis=1)
+        choice = np.random.choice(eta.shape[0], self._num_tracks, replace=(eta.shape[0] < self._num_tracks))
+        eta = eta[choice]
+        phi = phi[choice]
+        result=np.stack([eta, phi], axis=1)
         return result
     
     def __init__(self, num_calorimeter_hits, num_tracks, shuffle=True):

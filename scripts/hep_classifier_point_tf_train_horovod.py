@@ -377,78 +377,16 @@ def main():
     iterator_validation_handle_string = iterator_validation.string_handle()
     iterator_validation_init_op = iterator_validation.make_initializer(dataset_validation)
     
-    #
-    #
+    
+    #it = dataset_train.make_one_shot_iterator()
     #with tf.Session() as sess:
-    #    #iterator_train_handle = sess.run(iterator_train_handle_string)
-    #    #sess.run(iterator_validation_init_op, feed_dict=feed_dict_validation)
     #    
     #    for i in range(100):
     #        #try:
-    #        res = sess.run(iterator_train.get_next())
+    #        res = sess.run(it.get_next())
     #        print(res)
+    #        break
             
-    
-    #read the actual entries
-    #
-    #dataset_train_bg = dataset_train_bg.map(lambda h, t: tuple(h, t, 0.))
-    
-    
-    #dataset_train = dataset_train.prefetch(args['train_batch_size_per_node'])
-    #dataset_train = dataset_train.apply(tf.contrib.data.batch_and_drop_remainder(args['train_batch_size_per_node']))
-    #dataset_train = dataset_train.repeat(1)
-    ##do some weight-preprocessing
-    ##dataset_train = dataset_train.map(lambda im,lb,wg,nw,ps: (im, lb, wg, nw, ps), num_parallel_calls=2)
-    #iterator_train = dataset_train.make_initializable_iterator()
-    #iterator_train_handle_string = iterator_train.string_handle()
-    #iterator_train_init_op = iterator_train.make_initializer(dataset_train)
-    #
-    ##validation
-    #root_validation_gen = utils.root_generator(args['num_calorimeter_hits'], args['num_tracks'], shuffle=False)
-    #dataset_validation = tf.data.Dataset.from_tensor_slices(validationfiles_bg)
-    #if args['num_workers'] > 1:
-    #    dataset_validation = dataset_validation.shard(args['num_workers'], args["task_index"])
-    #dataset_validation = dataset_validation.shuffle(len(validationfiles) // args['num_workers'], seed=shuffle_seed)
-    #dataset_validation = dataset_validation.interleave(lambda filename: tf.data.Dataset.from_generator(root_validation_gen, \
-    #                                                                                output_types = (tf.float32, tf.float32), \
-    #                                                                                output_shapes = (args['num_calorimeter_hits'],2), (args['num_tracks'])), \
-    #                                                                                args=[filename]), cycle_length = 4, block_length = 1)
-    #dataset_validation = dataset_validation.prefetch(args['validation_batch_size_per_node'])
-    #dataset_validation = dataset_validation.apply(tf.contrib.data.batch_and_drop_remainder(args['validation_batch_size_per_node']))
-    #dataset_validation = dataset_validation.repeat(1)
-    ##do some weight-preprocessing
-    ##dataset_validation = dataset_validation.map(lambda im,lb,wg,nw,ps: (im, lb, wg, nw, ps), num_parallel_calls=2)
-    #iterator_validation = dataset_validation.make_initializable_iterator()
-    #iterator_validation_handle_string = iterator_validation.string_handle()
-    #iterator_validation_init_op = iterator_validation.make_initializer(dataset_validation)
-    
-    ##create tensorflow datasets
-    ##training
-    #dataset_train = tf.data.Dataset.from_generator(trainset.next, 
-    #                                              output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), 
-    #                                              output_shapes = (args['input_shape'], (1), (1), (1), (1)))
-    #dataset_train = dataset_train.prefetch(args['train_batch_size_per_node'])
-    #dataset_train = dataset_train.apply(tf.contrib.data.batch_and_drop_remainder(args['train_batch_size_per_node']))
-    #dataset_train = dataset_train.repeat(1)
-    ##do some weight-preprocessing
-    ##dataset_train = dataset_train.map(lambda im,lb,wg,nw,ps: (im, lb, wg, nw, ps), num_parallel_calls=2)
-    #iterator_train = dataset_train.make_initializable_iterator()
-    #iterator_train_handle_string = iterator_train.string_handle()
-    #iterator_train_init_op = iterator_train.make_initializer(dataset_train)
-    #
-    #
-    ##validation
-    #dataset_validation = tf.data.Dataset.from_generator(validationset.next, 
-    #                                                    output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), 
-    #                                                    output_shapes = (args['input_shape'], (1), (1), (1), (1)))
-    #dataset_validation = dataset_validation.prefetch(args['validation_batch_size_per_node'])
-    #dataset_validation = dataset_validation.apply(tf.contrib.data.batch_and_drop_remainder(args['validation_batch_size_per_node']))
-    #dataset_validation = dataset_validation.repeat(1)
-    ##do some weight-preprocessing
-    ##dataset_validation = dataset_validation.map(lambda im,lb,wg,nw,ps: (im, lb, wg, nw, ps), num_parallel_calls=2)
-    #iterator_validation = dataset_validation.make_initializable_iterator()
-    #iterator_validation_handle_string = iterator_validation.string_handle()
-    #iterator_validation_init_op = iterator_validation.make_initializer(dataset_validation)
     
     ##Determine stopping point, i.e. compute last_step:
     #args["steps_per_epoch"] = args["trainsamples"] // (args["train_batch_size_per_node"] * args["num_workers"])
