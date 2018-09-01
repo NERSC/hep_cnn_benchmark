@@ -45,250 +45,130 @@ from numpy.random import RandomState as rng
 import tensorflow as tf
 import tensorflow.contrib.keras as tfk
 
-
-# # General Functions
-
-# ## Input Handler
-
-# In[3]:
-
-#class suppress_stdout_stderr(object):
-#    """
-#    A context manager for doing a "deep suppression" of stdout and stderr in
-#    Python, i.e. will suppress all print, even if the print originates in a
-#    compiled C/Fortran sub-function.
-#       This will not suppress raised exceptions, since exceptions are printed
-#    to stderr just before a script exits, and after the context manager has
-#    exited (at least, I think that is why it lets exceptions through).
-#    """
-#    def __init__(self):
-#        # Open a pair of null files
-#        self.null_fds =  [os.open(os.devnull,os.O_RDWR) for x in range(2)]
-#        # Save the actual stdout (1) and stderr (2) file descriptors.
-#        self.save_fds = (os.dup(1), os.dup(2))
-#
-#    def __enter__(self):
-#        # Assign the null pointers to stdout and stderr.
-#        os.dup2(self.null_fds[0],1)
-#        os.dup2(self.null_fds[1],2)
-#
-#    def __exit__(self, *_):
-#        # Re-assign the real stdout/stderr back to (1) and (2)
-#        os.dup2(self.save_fds[0],1)
-#        os.dup2(self.save_fds[1],2)
-#        # Close the null files
-#        os.close(self.null_fds[0])
-#        os.close(self.null_fds[1])
-#
-#
-#class DataSet(object):
-#    
-#    def reset(self):
-#        self._epochs_completed = 0
-#        self._file_index = 0
-#        self._data_index = 0
-#    
-#    def transform_calohits_to_pointcloud(self, eta, phi, energy, emfrac):
-#        #perform sampling with replacement
-#        choice = np.random.choice(eta.shape[0], self._num_calo_hits)
-#        eta = np.expand_dims(eta[choice], axis=1)
-#        phi = np.expand_dims(phi[choice], axis=1)
-#        energy = np.expand_dims(energy[choice], axis=1)
-#        emfrac = np.expand_dims(emfrac[choice], axis=1)
-#        result=np.concatenate([eta, phi, energy, emfrac], axis=1)
-#        return result
-#        
-#    def transform_tracks_to_pointcloud(self, eta, phi):
-#        #perform sampling with replacement
-#        choice = np.random.choice(eta.shape[0], self._num_tracks)
-#        eta = np.expand_dims(eta[choice], axis=1)
-#        phi = np.expand_dims(phi[choice], axis=1)
-#        result=np.concatenate([eta, phi], axis=1)
-#        return result
-#    
-#    def load_next_file(self):
-#        #only load a new file if there are more than one file in the list:
-#        if self._num_files > 1 or not self._initialized:
-#            try:
-#                with suppress_stdout_stderr():
-#                    self._tree = rnp.root2array(self._filelist[self._file_index], treename='Delphes',
-#                                          branches=self._branch_dict.keys(), stop=self._max_events,
-#                                          warn_missing_tree=True)
-#            except EnvironmentError:
-#                raise EnvironmentError("Cannot open file "+self._filelist[self._file_index])
-#            
-#            # Rename the branches
-#            self._tree.dtype.names = self._branch_dict.values()
-#            self._initialized = True
-#        
-#            #set number of samples
-#            self._num_examples = self._tree['clusEta'].shape[0]
-#        
-#        #compute pointcloud
-#        #em hits
-#        calohits_bg = map(self.transform_calohits_to_pointcloud, self._tree['clusEta'], self._tree['clusPhi'], self._tree['clusE'], self._tree['clusEM'])
-#        calohits_bg = np.stack(calohits_bg, axis=0)
-#        #tracks
-#        tracks_bg = map(self.transform_tracks_to_pointcloud, self._tree['trackEta'], self._tree['trackPhi'])
-#        tracks_bg = np.stack(tracks_bg, axis=0)
-#        #labels
-#        labels_bg = np.zeros((self._num_examples))
-#        
-#        print(points_bg.shape)
-#        #if self._shuffle:
-#        #  #create permutation
-#        #  perm = np.arange(self._num_examples)
-#        #  np.random.shuffle(perm)
-#        #  #shuffle
-#        #  self._images = self._images[perm]
-#        #  self._labels = self._labels[perm]
-#        #  self._normweights = self._normweights[perm]
-#        #  self._weights = self._weights[perm]
-#        #  self._psr = self._psr[perm]
-#        
-#    def __init__(self, filelist, num_calo_hits, num_tracks, num_tasks=1, taskid=0, split_filelist=False, shuffle=False, max_events=None):
-#        """Construct DataSet"""
-#        #general dict for extracting data
-#        self._branch_dict = {
-#            'Tower.Eta' : 'clusEta',
-#            'Tower.Phi' : 'clusPhi',
-#            'Tower.E'   : 'clusE',
-#            'Tower.Eem' : 'clusEM',
-#            'Track.Eta' : 'trackEta',
-#            'Track.Phi' : 'trackPhi'
-#        }
-#        
-#        #multinode stuff
-#        self._num_calo_hits = num_calo_hits
-#        self._num_tracks = num_tracks
-#        self._num_tasks = num_tasks
-#        self._taskid = taskid
-#        self._split_filelist = split_filelist
-#        self._shuffle = shuffle
-#        self._max_events = max_events
-#        
-#        #split filelist?
-#        self._num_files = len(filelist)
-#        start = 0
-#        end = self._num_files
-#        if self._split_filelist:
-#            self._num_files = int(np.floor(len(filelist)/float(self._num_tasks)))
-#            start = self._taskid * self._num_files
-#            end = start + self._num_files
-#        
-#        assert self._num_files > 0, ('filelist is empty')
-#        
-#        self._filelist = filelist[start:end]
-#        self._initialized = False
-#        self.reset()
-#        self.load_next_file()
-#
-#    @property
-#    def num_files(self):
-#        return self._num_files
-#    
-#    @property
-#    def num_samples(self):
-#        return self._num_examples
-#
-#    @property
-#    def epochs_completed(self):
-#        return self._epochs_completed
-#    
-#    #def next(self):
-#    #    for i in itertools.count(1): 
-#    #        try:
-#    #            images, labels, normweights, weights, psr = self.next_batch(1)
-#    #            
-#    #            #squeeze dims:
-#    #            images = np.squeeze(images, axis=0)
-#    #            labels = np.squeeze(labels, axis=0)
-#    #            normweights = np.squeeze(normweights, axis=0)
-#    #            weights = np.squeeze(weights, axis=0)
-#    #            psr = np.squeeze(psr, axis=0)
-#    #            
-#    #            yield images, labels, normweights, weights, psr
-#    #        except:
-#    #            return
-#    #
-#    #def next_batch(self, batch_size):
-#    #    """Return the next `batch_size` examples from this data set."""
-#    #    start = self._data_index
-#    #    self._data_index += batch_size
-#    #    end=int(np.min([self._num_examples,self._data_index]))
-#    #    
-#    #    #take what is there
-#    #    images = self._images[start:end]
-#    #    labels = self._labels[start:end]
-#    #    normweights = self._normweights[start:end]
-#    #    weights = self._weights[start:end]
-#    #    psr = self._psr[start:end]
-#    #    
-#    #    if self._data_index > self._num_examples:
-#    #        #remains:
-#    #        remaining = self._data_index-self._num_examples
-#    #        
-#    #        #first, reset data_index and increase file index:
-#    #        self._data_index=0
-#    #        self._file_index+=1
-#    #        
-#    #        #check if we are at the end of the file list
-#    #        if self._file_index >= self._num_files:
-#    #            #epoch is finished
-#    #            self._epochs_completed += 1
-#    #            #reset file index and shuffle list
-#    #            self._file_index=0
-#    #            if self._shuffle:
-#    #                np.random.shuffle(self._filelist)
-#    #            return
-#    #        
-#    #        #load the next file
-#    #        self.load_next_file()
-#    #        #assert batch_size <= self._num_examples
-#    #        #call rerucsively
-#    #        tmpimages,tmplabels,tmpnormweights,tmpweights,tmppsr = self.next_batch(remaining)
-#    #        #join
-#    #        images = np.concatenate([images,tmpimages],axis=0)    
-#    #        labels = np.concatenate([labels,tmplabels],axis=0)
-#    #        normweights = np.concatenate([normweights,tmpnormweights],axis=0)
-#    #        weights = np.concatenate([weights,tmpweights],axis=0)
-#    #        psr = np.concatenate([psr,tmppsr],axis=0)
-#    #    
-#    #    return images, labels, normweights, weights, psr
-#
-#
-##load model wrapper
-#def load_model(sess, saver, checkpoint_dir):
-#    print("Looking for model in {}".format(checkpoint_dir))
-#    #get list of checkpoints
-#    checkpoints = [x.replace(".index","") for x in os.listdir(checkpoint_dir) if x.startswith("model.ckpt") and x.endswith(".index")]
-#    checkpoints = sorted([(int(x.split("-")[1]),x) for x in checkpoints], key=lambda tup: tup[0])
-#    latest_ckpt = os.path.join(checkpoint_dir,checkpoints[-1][1])
-#    print("Restoring model {}".format(latest_ckpt))
-#    try:
-#        saver.restore(sess, latest_ckpt)
-#        print("Model restoration successful.")
-#    except:
-#        print("Loading model failed, starting fresh.")
-
+#pointcnn stuff
+import pointcnn as pcnn
 
 ## ## HEP PCNN Model
 #
 ## In[4]:
 #
+class Settings():
+    
+    def __init__(self, data_dim):
+        self.sampling = "random"
+        self.data_dim = data_dim
+        self.with_global = False
+        self.with_X_transformation = True
+        self.sorting_method = 'cyxz'
+        self.use_extra_features = False
+        self.fc_params = []
+        self.xconv_params = []
+        
+    def set_xconv_params(self, conv_params):
+        self.xconv_params = conv_params
+        
+    def set_fc_params(self, fc_params):
+        self.fc_params = fc_params
+        
+
 def build_pcnn_model(args):
-    return None, None
-#    
-#    #datatype
-#    dtype=args["precision"]
-#    
-#    #find out which device to use:
-#    device='/cpu:0'
-#    if args['arch']=='gpu':
-#        device='/gpu:0'
-#    
-#    #define empty variables dict
-#    variables={}
+    
+    #some general parameters
+    xconv_param_name = ('K', 'D', 'P', 'C', 'links')
+    fc_param_name = ('C', 'dropout_rate')
+    
+    #datatype
+    dtype=args["precision"]
+    
+    #find out which device to use:
+    device='/cpu:0'
+    if args['arch']=='gpu':
+        device='/gpu:0'
+    
+    #define empty variables dict
+    variables={}
+    
+    #create input tensors
+    handle = tf.placeholder(tf.string, shape=[], name="iterator-placeholder")
+    iterator = tf.data.Iterator.from_string_handle(handle, (tf.float32, tf.float32, tf.int32),
+                                                            ((args["train_batch_size"], args['num_calorimeter_hits'], 5), \
+                                                            (args["train_batch_size"], args['num_tracks'], 3), \
+                                                            (args["train_batch_size"])))
+    next_elem = iterator.get_next()
+    variables['iterator_'] = iterator
+    variables['iterator_handle_'] = handle
+    variables['calorimeter_hits_'] = next_elem[0]
+    variables['tracks_'] = next_elem[1]
+    variables['labels_'] = next_elem[2]
+    variables['keep_prob_'] = tf.placeholder(dtype)
+    
+    #build the calorimeter part
+    calo_points = variables['calorimeter_hits_'][...,:3]
+    calo_features = variables['calorimeter_hits_'][...,3:]
+    
+    x_fact_conv = 3
+    calo_xconv_params = [dict(zip(xconv_param_name, xconv_param)) for xconv_param in
+                        [(6, 1, -1, 16 * x_fact_conv, []),
+                        (8, 2, 384, 32 * x_fact_conv, []),
+                        (12, 2, 256, 64 * x_fact_conv, []),
+                        (12, 3, 128, 64 * x_fact_conv, [])]]
+    #calo_fc_params = [dict(zip(fc_param_name, fc_param)) for fc_param in
+    #                    [(128 * x_fact, 0.0),
+    #                      (64 * x_fact, 1.-variables['keep_prob_'])]]
+    #create settings class
+    calo_setting = Settings(data_dim = 5)
+    calo_setting.set_xconv_params(calo_xconv_params)
+    #calo_setting.set_fc_params(calo_fc_params)
+    with tf.variable_scope("calo_cnn"):
+        calo_cnn = pcnn.PointCNN(calo_points, calo_features, True, calo_setting);
+    
+    
+    #build the track part
+    track_points = variables['tracks_']
+    track_features = None
+    
+    x_fact_conv = 3
+    track_xconv_params = [dict(zip(xconv_param_name, xconv_param)) for xconv_param in
+                        [(4, 1, -1, 8 * x_fact_conv, []),
+                        (6, 2, 256, 16 * x_fact_conv, []),
+                        (8, 2, 192, 32 * x_fact_conv, []),
+                        (8, 3, 128, 64 * x_fact_conv, [])]]
+    #x_fact_fc = 3
+    #track_fc_params = [dict(zip(fc_param_name, fc_param)) for fc_param in
+    #                    [(64 * x_fact_fc, 0.0),
+    #                      (64 * x_fact_fc, 1.-variables['keep_prob_'])]]
+    #create settings class
+    track_setting = Settings(data_dim = 3)
+    track_setting.set_xconv_params(track_xconv_params)
+    #track_setting.set_fc_params(track_fc_params)
+    with tf.variable_scope("track_cnn"):
+        track_cnn = pcnn.PointCNN(track_points, track_features, True, track_setting);
+    
+    
+    print(calo_cnn.layer_fts[-1].shape, track_cnn.layer_fts[-1].shape)
+    
+    #build the combined part
+    combined_points = tf.concat([calo_cnn.layer_pts[-1], track_cnn.layer_pts[-1]], axis=1)
+    combined_features = tf.concat([calo_cnn.layer_fts[-1], track_cnn.layer_fts[-1]], axis=1)
+    
+    x_fact_conv = 3
+    combined_xconv_params = [dict(zip(xconv_param_name, xconv_param)) for xconv_param in
+                        [(12, 2, -1, 64 * x_fact_conv, []),
+                        (14, 3, 192, 128 * x_fact_conv, []),
+                        (14, 3, 128, 256 * x_fact_conv, [])]]
+    combined_fc_params = [dict(zip(fc_param_name, fc_param)) for fc_param in
+                           [(2, 1.-variables['keep_prob_'])]]
+    #create settings class
+    combined_setting = Settings(data_dim = 3)
+    combined_setting.set_xconv_params(combined_xconv_params)
+    combined_setting.set_fc_params(combined_fc_params)
+    with tf.variable_scope("combined_cnn"):
+        combined_cnn = pcnn.PointCNN(combined_points, combined_features, True, combined_setting);
+    
+    
+    
+    return variables, calo_cnn
+
 #    
 #    #rotate input shape depending on data format
 #    data_format=args['conv_params']['data_format']
@@ -298,23 +178,7 @@ def build_pcnn_model(args):
 #    args['graph'] = tf.Graph()
 #    
 #    
-#    #create input tensors
-#    handle = tf.placeholder(tf.string, shape=[], name="iterator-placeholder")
-#    iterator = tf.data.Iterator.from_string_handle(handle, (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32),
-#                                                            ((args['train_batch_size_per_node'], input_shape[0], input_shape[1], input_shape[2]),
-#                                                            (args['train_batch_size_per_node'], 1),
-#                                                            (args['train_batch_size_per_node'], 1),
-#                                                            (args['train_batch_size_per_node'], 1),
-#                                                            (args['train_batch_size_per_node'], 1)
-#                                                            ))
-#    next_elem = iterator.get_next()
-#    variables['iterator_'] = iterator
-#    variables['iterator_handle_'] = handle
-#    variables['images_'] = next_elem[0]
-#    variables['labels_'] = next_elem[1]
-#    variables['normweights_'] = next_elem[2]
-#    variables['weights_'] = next_elem[3]
-#    variables['keep_prob_'] = tf.placeholder(dtype)
+
 #    
 #    #empty network:
 #    network = []

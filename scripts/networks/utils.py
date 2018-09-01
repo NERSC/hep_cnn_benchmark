@@ -80,7 +80,7 @@ class root_generator():
         phi = phi[choice]
         energy = energy[choice]
         emfrac = emfrac[choice]
-        result=np.stack([eta, phi, energy, emfrac], axis=1)
+        result=np.stack([eta, cos(phi), sin(phi), energy, emfrac], axis=1)
         return result
             
     def transform_tracks_to_pointcloud(self, eta, phi):
@@ -88,7 +88,7 @@ class root_generator():
         choice = np.random.choice(eta.shape[0], self._num_tracks, replace=(eta.shape[0] < self._num_tracks))
         eta = eta[choice]
         phi = phi[choice]
-        result=np.stack([eta, phi], axis=1)
+        result=np.stack([eta, cos(phi), sin(phi)], axis=1)
         return result
     
     def __init__(self, num_calorimeter_hits, num_tracks, shuffle=True):

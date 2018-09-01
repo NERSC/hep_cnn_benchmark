@@ -293,6 +293,8 @@ def main():
     if args["is_chief"]:
         print("Building model")
     variables, network = bc.build_pcnn_model(args)
+    
+    #print(dir(network))
     #variables, pred_fn, loss_fn, accuracy_fn, auc_fn = bc.build_functions(args,variables,network)
     ##rank averages
     #loss_avg_fn = hvd.allreduce(tf.cast(loss_fn, tf.float32))
@@ -337,7 +339,7 @@ def main():
     #now we have signal and background interleaved, with equal amount of files training and bg.
     dataset_train = dataset_train.interleave(lambda filename, label: tf.data.Dataset.from_generator(root_train_gen, \
                                                                                 output_types = (tf.float32, tf.float32, tf.int32), \
-                                                                                output_shapes = ((args['num_calorimeter_hits'],4), (args['num_tracks'],2), ()), \
+                                                                                output_shapes = ((args['num_calorimeter_hits'],5), (args['num_tracks'],3), ()), \
                                                                                 args=[filename, label]), cycle_length = 2, block_length = 10)
     #shuffle between files to avoid having alternating behaviour
     dataset_train = dataset_train.prefetch(16*args['train_batch_size'])
@@ -366,7 +368,7 @@ def main():
     #now we have signal and background interleaved, with equal amount of files validationing and bg.
     dataset_validation = dataset_validation.interleave(lambda filename, label: tf.data.Dataset.from_generator(root_validation_gen, \
                                                                                 output_types = (tf.float32, tf.float32, tf.int32), \
-                                                                                output_shapes = ((args['num_calorimeter_hits'],4), (args['num_tracks'],2), ()), \
+                                                                                output_shapes = ((args['num_calorimeter_hits'],5), (args['num_tracks'],3), ()), \
                                                                                 args=[filename, label]), cycle_length = 2, block_length = 10)
     #shuffle between files to avoid having alternating behaviour
     dataset_validation = dataset_validation.prefetch(16*args['validation_batch_size'])

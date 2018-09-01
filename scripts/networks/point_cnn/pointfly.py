@@ -104,7 +104,7 @@ def augment(points, xforms, range=None):
 
 # A shape is (N, C)
 def distance_matrix(A):
-    r = tf.reduce_sum(A * A, 1, keep_dims=True)
+    r = tf.reduce_sum(A * A, 1, keepdims=True)
     m = tf.matmul(A, tf.transpose(A))
     D = r - 2 * m + tf.transpose(r)
     return D
@@ -112,7 +112,7 @@ def distance_matrix(A):
 
 # A shape is (N, P, C)
 def batch_distance_matrix(A):
-    r = tf.reduce_sum(A * A, axis=2, keep_dims=True)
+    r = tf.reduce_sum(A * A, axis=2, keepdims=True)
     m = tf.matmul(A, tf.transpose(A, perm=(0, 2, 1)))
     D = r - 2 * m + tf.transpose(r, perm=(0, 2, 1))
     return D
@@ -121,8 +121,8 @@ def batch_distance_matrix(A):
 # A shape is (N, P_A, C), B shape is (N, P_B, C)
 # D shape is (N, P_A, P_B)
 def batch_distance_matrix_general(A, B):
-    r_A = tf.reduce_sum(A * A, axis=2, keep_dims=True)
-    r_B = tf.reduce_sum(B * B, axis=2, keep_dims=True)
+    r_A = tf.reduce_sum(A * A, axis=2, keepdims=True)
+    r_B = tf.reduce_sum(B * B, axis=2, keepdims=True)
     m = tf.matmul(A, tf.transpose(B, perm=(0, 2, 1)))
     D = r_A - 2 * m + tf.transpose(r_B, perm=(0, 2, 1))
     return D
@@ -189,8 +189,8 @@ def sort_points(points, indices, sorting_method):
             print('Unknown sorting method!')
             exit()
         epsilon = 1e-8
-        nn_pts_min = tf.reduce_min(nn_pts, axis=2, keep_dims=True)
-        nn_pts_max = tf.reduce_max(nn_pts, axis=2, keep_dims=True)
+        nn_pts_min = tf.reduce_min(nn_pts, axis=2, keepdims=True)
+        nn_pts_max = tf.reduce_max(nn_pts, axis=2, keepdims=True)
         nn_pts_normalized = (nn_pts - nn_pts_min) / (nn_pts_max - nn_pts_min + epsilon)  # (N, P, K, 3)
         scaling_factors = [math.pow(100.0, 3 - sorting_method.find('x')),
                            math.pow(100.0, 3 - sorting_method.find('y')),
@@ -199,7 +199,7 @@ def sort_points(points, indices, sorting_method):
         sorting_data = tf.reduce_sum(nn_pts_normalized * scaling, axis=-1)  # (N, P, K)
         sorting_data = tf.concat([tf.zeros((batch_size, point_num, 1)), sorting_data[:, :, 1:]], axis=-1)
     elif sorting_method == 'l2':
-        nn_pts_center = tf.reduce_mean(nn_pts, axis=2, keep_dims=True)  # (N, P, 1, 3)
+        nn_pts_center = tf.reduce_mean(nn_pts, axis=2, keepdims=True)  # (N, P, 1, 3)
         nn_pts_local = tf.subtract(nn_pts, nn_pts_center)  # (N, P, K, 3)
         sorting_data = tf.norm(nn_pts_local, axis=-1)  # (N, P, K)
     else:
@@ -216,7 +216,7 @@ def sort_points(points, indices, sorting_method):
 # a b c
 # d e f
 # g h i
-# a(ei − fh) − b(di − fg) + c(dh − eg)
+# a(ei - fh) - b(di - fg) + c(dh - eg)
 def compute_determinant(A):
     return A[..., 0, 0] * (A[..., 1, 1] * A[..., 2, 2] - A[..., 1, 2] * A[..., 2, 1]) \
            - A[..., 0, 1] * (A[..., 1, 0] * A[..., 2, 2] - A[..., 1, 2] * A[..., 2, 0]) \
@@ -252,7 +252,7 @@ def compute_eigenvals(A):
 # P shape is (N, P, 3), N shape is (N, P, K, 3)
 # return shape is (N, P)
 def compute_curvature(nn_pts):
-    nn_pts_mean = tf.reduce_mean(nn_pts, axis=2, keep_dims=True)  # (N, P, 1, 3)
+    nn_pts_mean = tf.reduce_mean(nn_pts, axis=2, keepdims=True)  # (N, P, 1, 3)
     nn_pts_demean = nn_pts - nn_pts_mean  # (N, P, K, 3)
     nn_pts_NPK31 = tf.expand_dims(nn_pts_demean, axis=-1)
     covariance_matrix = tf.matmul(nn_pts_NPK31, nn_pts_NPK31, transpose_b=True)  # (N, P, K, 3, 3)
@@ -286,7 +286,7 @@ def inverse_density_sampling(points, k, sample_num):
     D = batch_distance_matrix(points)
     distances, _ = tf.nn.top_k(-D, k=k, sorted=False)
     distances_avg = tf.abs(tf.reduce_mean(distances, axis=-1)) + 1e-8
-    prob_matrix = distances_avg / tf.reduce_sum(distances_avg, axis=-1, keep_dims=True)
+    prob_matrix = distances_avg / tf.reduce_sum(distances_avg, axis=-1, keepdims=True)
     point_indices = tf.py_func(random_choice_2d, [sample_num, prob_matrix], tf.int32)
     point_indices.set_shape([points.get_shape()[0], sample_num])
 
