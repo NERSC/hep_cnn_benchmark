@@ -304,7 +304,6 @@ def main():
     auc_avg_fn = hvd.allreduce(tf.cast(auc_fn[0], tf.float32))
     if args["is_chief"]:
         print("Variables:",variables)
-        print("Network:",network)
     
     # Setup Iterators
     if args["is_chief"]:
@@ -456,7 +455,7 @@ def main():
         
         #restore weights belonging to graph
         if not args['restart'] and args["is_chief"]:
-            bc.load_model(sess, model_saver, args['modelpath'])
+            utils.load_model(sess, model_saver, args['modelpath'])
             
         #broadcast model
         sess.run(init_bcast)

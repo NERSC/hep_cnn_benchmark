@@ -98,6 +98,7 @@ def build_pcnn_model(args):
     variables['iterator_handle_'] = handle
     variables['hits_'] = next_elem[0]
     variables['labels_'] = next_elem[1]
+    variables['weights_'] = tf.constant(1., tf.float32, [args["train_batch_size"]])
     variables['keep_prob_'] = tf.placeholder(dtype)
     
     #build the calorimeter part
