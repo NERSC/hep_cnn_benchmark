@@ -76,22 +76,27 @@ class root_generator():
     def transform_calohits_to_pointcloud(self, eta, phi, energy, emfrac):
         #perform sampling with replacement, only if there are fewer points than requested points
         choice = np.random.choice(eta.shape[0], self._num_calorimeter_hits, replace=(eta.shape[0] < self._num_calorimeter_hits))
-        eta = eta[choice]
-        phi = phi[choice]
-        energy = energy[choice]
-        emfrac = emfrac[choice]
-        result=np.stack([eta, cos(phi), sin(phi), energy, emfrac], axis=1)
+        eta = eta[choice].astype(dtype=self._dtype)
+        phi = phi[choice].astype(dtype=self._dtype)
+        energy = energy[choice].astype(dtype=self._dtype)
+        emfrac = emfrac[choice].astype(dtype=self._dtype)
+        #pad with 0-class for emhits
+        result=np.stack([eta, cos(phi), sin(phi), energy, emfrac, np.zeros(self._num_calorimeter_hits, dtype=self._dtype)], axis=1)
         return result
             
     def transform_tracks_to_pointcloud(self, eta, phi):
         #perform sampling with replacement
         choice = np.random.choice(eta.shape[0], self._num_tracks, replace=(eta.shape[0] < self._num_tracks))
-        eta = eta[choice]
-        phi = phi[choice]
-        result=np.stack([eta, cos(phi), sin(phi)], axis=1)
+        eta = eta[choice].astype(dtype=self._dtype)
+        phi = phi[choice].astype(dtype=self._dtype)
+        #pad by zero for EM and EMfrac and one for tracks
+        result=np.stack([eta, cos(phi), sin(phi), \
+                        np.zeros(self._num_tracks, dtype=self._dtype), \
+                        np.zeros(self._num_tracks, dtype=self._dtype), \
+                        np.ones(self._num_tracks, dtype=self._dtype)], axis=1)
         return result
     
-    def __init__(self, num_calorimeter_hits, num_tracks, shuffle=True):
+    def __init__(self, num_calorimeter_hits, num_tracks, shuffle=True, dtype=np.float32):
         self._shuffle = shuffle
         self._branches = {
             'Tower.Eta',
@@ -103,6 +108,7 @@ class root_generator():
         }
         self._num_calorimeter_hits = num_calorimeter_hits
         self._num_tracks = num_tracks
+        self._dtype=dtype
     
     def __call__(self, filename, label):
         with suppress_stdout_stderr():
@@ -119,14 +125,15 @@ class root_generator():
         #tracks
         tracks = map(self.transform_tracks_to_pointcloud, self._tree['Track.Eta'], self._tree['Track.Phi'])
         tracks = np.stack(tracks, axis=0)
+        #stack all of it together
+        data = np.stack([calohist,tracks],axis=1)
         
         if self._shuffle:
             perm = np.random.permutation(num_examples)
-            calohits = calohits[perm]
-            tracks = tracks[perm]
+            data = data[perm]
             
         for i in range(num_examples):
-            yield calohits[i,...], tracks[i,...], label
+            yield data[i,...], label
 
 
 #load model wrapper

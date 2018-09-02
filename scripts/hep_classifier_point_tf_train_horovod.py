@@ -127,117 +127,118 @@ def parse_arguments():
     
     return args
 
-#def evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, prefix):
-#    
-#    #reinit the validation iterator
-#    sess.run(iterator_validation_init_op, feed_dict=feed_dict_validation)
-#    
-#    #compute validation loss:
-#    #reset variables
-#    validation_loss = 0.
-#    validation_batches = 0
-#    
-#    #get global step:
-#    gstep = sess.run(ops["global_step"])
-#    
-#    #iterate over validation set
-#    while validation_batches < args["validation_max_steps"]:
-#        
-#        try:
-#            #compute loss
-#            if args['create_summary']:
-#                summary, tmp_loss, _, _ = sess.run([ops["validation_summary"], ops["loss_eval"], ops["acc_update"], ops["auc_update"]],
-#                                                    feed_dict=feed_dict_validation)
-#            else:
-#                tmp_loss, _, _ = sess.run([ops["loss_eval"], ops["acc_update"], ops["auc_update"]], feed_dict=feed_dict_validation)
-#    
-#            #add loss
-#            validation_loss += tmp_loss
-#            validation_batches += 1
-#            
-#        except:
-#            break
-#    
-#    #report the results
-#    validation_accuracy, validation_auc = sess.run([ops["acc_eval"], ops["auc_eval"]])
-#    if args["is_chief"]:
-#        tstamp = time.time()
-#        print("%.2f EVALUATION %s: step %d (%d), average loss %.6f"%(tstamp, prefix, gstep, args["last_step"], validation_loss/float(validation_batches)))
-#        print("%.2f EVALUATION %s: step %d (%d), average accu %.6f"%(tstamp, prefix, gstep, args["last_step"], validation_accuracy))
-#        print("%.2f EVALUATION %s: step %d (%d), average auc %.6f"%(tstamp, prefix, gstep, args["last_step"], validation_auc))
+
+def evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, prefix):
+    
+    #reinit the validation iterator
+    sess.run(iterator_validation_init_op, feed_dict=feed_dict_validation)
+    
+    #compute validation loss:
+    #reset variables
+    validation_loss = 0.
+    validation_batches = 0
+    
+    #get global step:
+    gstep = sess.run(ops["global_step"])
+    
+    #iterate over validation set
+    while validation_batches < args["validation_max_steps"]:
+        
+        try:
+            #compute loss
+            if args['create_summary']:
+                summary, tmp_loss, _, _ = sess.run([ops["validation_summary"], ops["loss_eval"], ops["acc_update"], ops["auc_update"]],
+                                                    feed_dict=feed_dict_validation)
+            else:
+                tmp_loss, _, _ = sess.run([ops["loss_eval"], ops["acc_update"], ops["auc_update"]], feed_dict=feed_dict_validation)
+    
+            #add loss
+            validation_loss += tmp_loss
+            validation_batches += 1
+            
+        except:
+            break
+    
+    #report the results
+    validation_accuracy, validation_auc = sess.run([ops["acc_eval"], ops["auc_eval"]])
+    if args["is_chief"]:
+        tstamp = time.time()
+        print("%.2f EVALUATION %s: step %d (%d), average loss %.6f"%(tstamp, prefix, gstep, args["last_step"], validation_loss/float(validation_batches)))
+        print("%.2f EVALUATION %s: step %d (%d), average accu %.6f"%(tstamp, prefix, gstep, args["last_step"], validation_accuracy))
+        print("%.2f EVALUATION %s: step %d (%d), average auc %.6f"%(tstamp, prefix, gstep, args["last_step"], validation_auc))
 
 
-#def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterator_validation_init_op, feed_dict_validation):
-#    
-#    #counters
-#    epochs_completed = 0
-#    
-#    #losses
-#    train_loss=0.
-#    train_batches=0
-#    total_batches=0
-#    train_time=0
-#    
-#    #extract ops
-#    train_step = ops["train_step"]
-#    global_step = ops["global_step"]
-#    loss_eval = ops["loss_eval"]
-#    acc_update = ops["acc_update"]
-#    acc_eval = ops["acc_eval"]
-#    auc_update = ops["auc_update"]
-#    auc_eval = ops["auc_eval"]
-#    
-#    #init iterators
-#    sess.run(iterator_train_init_op, feed_dict=feed_dict_train)
-#    
-#    #do training
-#    while not sess.should_stop():
-#        
-#        #increment total batch counter
-#        total_batches+=1
-#                
-#        try:
-#            start_time = time.time()
-#            if args['create_summary']:
-#                _, gstep, summary, tmp_loss = sess.run([train_step, global_step, ops["train_summary"], loss_eval], feed_dict=feed_dict_train)
-#            else:
-#                _, gstep, tmp_loss = sess.run([train_step, global_step, loss_eval], feed_dict=feed_dict_train)        
-#            end_time = time.time()
-#            train_time += end_time-start_time
-#            
-#            #increment train loss and batch number
-#            train_loss += tmp_loss
-#            total_batches += 1
-#            train_batches += 1
-#            
-#            #determine if we give a short update:
-#            if gstep%args['display_interval']==0:
-#                if args["is_chief"]:
-#                    tstamp = time.time()
-#                    print("%.2f TRAINING REPORT: step %d (%d), average loss %.6f (%.3f sec/batch)"%(tstamp, gstep, args["last_step"],
-#                                                                                                        train_loss/float(train_batches),
-#                                                                                                        train_time/float(train_batches)))
-#                train_batches = 0
-#                train_loss = 0.
-#                train_time = 0.
-#                
-#            if gstep%args['validation_interval']==0:
-#                evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, "REPORT")
-#    
-#        except:
-#            #get global step:
-#            gstep = sess.run(global_step)
-#
-#            #reinit iterator for next round
-#            sess.run(iterator_train_init_op, feed_dict=feed_dict_train)
-#            
-#            #reset counters
-#            train_loss = 0.
-#            train_batches = 0
-#            train_time = 0.
-#            
-#            #run eval loop:
-#            evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, "EPOCH SUMMARY")
+def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterator_validation_init_op, feed_dict_validation):
+    
+    #counters
+    epochs_completed = 0
+    
+    #losses
+    train_loss=0.
+    train_batches=0
+    total_batches=0
+    train_time=0
+    
+    #extract ops
+    train_step = ops["train_step"]
+    global_step = ops["global_step"]
+    loss_eval = ops["loss_eval"]
+    acc_update = ops["acc_update"]
+    acc_eval = ops["acc_eval"]
+    auc_update = ops["auc_update"]
+    auc_eval = ops["auc_eval"]
+    
+    #init iterators
+    sess.run(iterator_train_init_op, feed_dict=feed_dict_train)
+    
+    #do training
+    while not sess.should_stop():
+        
+        #increment total batch counter
+        total_batches+=1
+                
+        try:
+            start_time = time.time()
+            if args['create_summary']:
+                _, gstep, summary, tmp_loss = sess.run([train_step, global_step, ops["train_summary"], loss_eval], feed_dict=feed_dict_train)
+            else:
+                _, gstep, tmp_loss = sess.run([train_step, global_step, loss_eval], feed_dict=feed_dict_train)        
+            end_time = time.time()
+            train_time += end_time-start_time
+            
+            #increment train loss and batch number
+            train_loss += tmp_loss
+            total_batches += 1
+            train_batches += 1
+            
+            #determine if we give a short update:
+            if gstep%args['display_interval']==0:
+                if args["is_chief"]:
+                    tstamp = time.time()
+                    print("%.2f TRAINING REPORT: step %d (%d), average loss %.6f (%.3f sec/batch)"%(tstamp, gstep, args["last_step"],
+                                                                                                        train_loss/float(train_batches),
+                                                                                                        train_time/float(train_batches)))
+                train_batches = 0
+                train_loss = 0.
+                train_time = 0.
+                
+            if gstep%args['validation_interval']==0:
+                evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, "REPORT")
+    
+        except:
+            #get global step:
+            gstep = sess.run(global_step)
+
+            #reinit iterator for next round
+            sess.run(iterator_train_init_op, feed_dict=feed_dict_train)
+            
+            #reset counters
+            train_loss = 0.
+            train_batches = 0
+            train_time = 0.
+            
+            #run eval loop:
+            evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, "EPOCH SUMMARY")
 
 
 def main():
@@ -289,24 +290,25 @@ def main():
     if args["is_chief"]:
         print("Using ",num_inter_threads,"-way task parallelism with ",num_intra_threads,"-way data parallelism.")
     
+    #number of points
+    args["num_points"] = args['num_calorimeter_hits'] + args['num_tracks']
+    
     # Build Network and Functions
     if args["is_chief"]:
         print("Building model")
-    variables, network = bc.build_pcnn_model(args)
+    variables, logits = bc.build_pcnn_model(args)
+    variables, pred_fn, loss_fn, accuracy_fn, auc_fn = bc.build_functions(args,variables,logits)
+    #rank averages
+    loss_avg_fn = hvd.allreduce(tf.cast(loss_fn, tf.float32))
+    accuracy_avg_fn = hvd.allreduce(tf.cast(accuracy_fn[0], tf.float32))
+    auc_avg_fn = hvd.allreduce(tf.cast(auc_fn[0], tf.float32))
+    if args["is_chief"]:
+        print("Variables:",variables)
+        print("Network:",network)
     
-    #print(dir(network))
-    #variables, pred_fn, loss_fn, accuracy_fn, auc_fn = bc.build_functions(args,variables,network)
-    ##rank averages
-    #loss_avg_fn = hvd.allreduce(tf.cast(loss_fn, tf.float32))
-    #accuracy_avg_fn = hvd.allreduce(tf.cast(accuracy_fn[0], tf.float32))
-    #auc_avg_fn = hvd.allreduce(tf.cast(auc_fn[0], tf.float32))
-    #if args["is_chief"]:
-    #    print("Variables:",variables)
-    #    print("Network:",network)
-    #
-    ## Setup Iterators
-    #if args["is_chief"]:
-    #    print("Setting up iterators")
+    # Setup Iterators
+    if args["is_chief"]:
+        print("Setting up iterators")
         
     #training files
     trainfiles_bg = [os.path.join(args['inputpath'],"training","background",x) for x in os.listdir(os.path.join(args['inputpath'],"training","background")) if x and x.endswith('.root')]
@@ -338,9 +340,9 @@ def main():
     dataset_train = tf.data.Dataset.zip((dataset_train_bg, dataset_train_sg)).flat_map(lambda x0, x1: tf.data.Dataset.from_tensors(x0).concatenate(tf.data.Dataset.from_tensors(x1)))
     #now we have signal and background interleaved, with equal amount of files training and bg.
     dataset_train = dataset_train.interleave(lambda filename, label: tf.data.Dataset.from_generator(root_train_gen, \
-                                                                                output_types = (tf.float32, tf.float32, tf.int32), \
-                                                                                output_shapes = ((args['num_calorimeter_hits'],5), (args['num_tracks'],3), ()), \
-                                                                                args=[filename, label]), cycle_length = 2, block_length = 10)
+                                                                                output_types = (tf.float32, tf.int32), \
+                                                                                output_shapes = ((args["num_points"],6), ()), \
+                                                                                args=[filename, label]), cycle_length = 8, block_length = 10)
     #shuffle between files to avoid having alternating behaviour
     dataset_train = dataset_train.prefetch(16*args['train_batch_size'])
     dataset_train = dataset_train.shuffle(buffer_size=8*args['train_batch_size'])
@@ -367,9 +369,9 @@ def main():
     dataset_validation = tf.data.Dataset.zip((dataset_validation_bg, dataset_validation_sg)).flat_map(lambda x0, x1: tf.data.Dataset.from_tensors(x0).concatenate(tf.data.Dataset.from_tensors(x1)))
     #now we have signal and background interleaved, with equal amount of files validationing and bg.
     dataset_validation = dataset_validation.interleave(lambda filename, label: tf.data.Dataset.from_generator(root_validation_gen, \
-                                                                                output_types = (tf.float32, tf.float32, tf.int32), \
-                                                                                output_shapes = ((args['num_calorimeter_hits'],5), (args['num_tracks'],3), ()), \
-                                                                                args=[filename, label]), cycle_length = 2, block_length = 10)
+                                                                                output_types = (tf.float32, tf.int32), \
+                                                                                output_shapes = ((args["num_points"],6), ()), \
+                                                                                args=[filename, label]), cycle_length = 8, block_length = 10)
     #shuffle between files to avoid having alternating behaviour
     dataset_validation = dataset_validation.prefetch(16*args['validation_batch_size'])
     #dataset_validation = dataset_validation.shuffle(buffer_size=8*args['validation_batch_size']) #no need to shuffle that
@@ -379,123 +381,112 @@ def main():
     iterator_validation_handle_string = iterator_validation.string_handle()
     iterator_validation_init_op = iterator_validation.make_initializer(dataset_validation)
     
-    
-    #it = dataset_train.make_one_shot_iterator()
-    #with tf.Session() as sess:
-    #    
-    #    for i in range(100):
-    #        #try:
-    #        res = sess.run(it.get_next())
-    #        print(res)
-    #        break
-            
-    
     ##Determine stopping point, i.e. compute last_step:
-    #args["steps_per_epoch"] = args["trainsamples"] // (args["train_batch_size_per_node"] * args["num_workers"])
-    #args["last_step"] = args["steps_per_epoch"] * args["num_epochs"]
-    #if args["is_chief"]:
-    #    print("Stopping after %d global steps, doing %d steps per epoch"%(args["last_step"],args["steps_per_epoch"]))
-    #    
-    #    #set up file infrastructure
-    #    if not os.path.isdir(args['logpath']):
-    #        print("Creating log directory ",args['logpath'])
-    #        os.makedirs(args['logpath'])
-    #    if not os.path.isdir(args['modelpath']):
-    #        print("Creating model directory ",args['modelpath'])
-    #        os.makedirs(args['modelpath'])
-    #    if not os.path.isdir(args['inputpath']) and not args['dummy_data']:
-    #        raise ValueError("Please specify a valid path with input files in hdf5 format")
-    #
-    ## Train Model
-    ##determining which model to load:
-    #metafilelist = [args['modelpath']+'/'+x for x in os.listdir(args['modelpath']) if x.endswith('.meta')]
-    #if not metafilelist:
-    #    #no model found, restart from scratch
-    #    args['restart']=True
-    #
-    ##a hook that will stop training at a certain number of steps
-    #hooks=[tf.train.StopAtStepHook(last_step=args["last_step"])]
-    #        
-    ##global step that either gets updated after any node processes a batch (async) or when all nodes process a batch for a given iteration (sync)
-    #global_step = tf.train.get_or_create_global_step()
-    #opt = args['opt_func'](**args['opt_args'])
-    #            
-    ##only sync update supported
-    #opt = hvd.DistributedOptimizer(opt)
-    #
-    ##broadcasting model
-    #init_bcast = hvd.broadcast_global_variables(0)
-    #            
-    ##create train step handle
-    #train_step = opt.minimize(loss_fn, global_step=global_step)
-    #            
-    ##creating summary
-    #if args['create_summary']:
-    #    if args["is_chief"]:
-    #        summary_loss = tf.summary.scalar("loss",loss_fn)
-    #        train_summary = tf.summary.merge([summary_loss])
-    #        hooks.append(tf.train.StepCounterHook(every_n_steps=100,output_dir=args['logpath']))
-    #        hooks.append(tf.train.SummarySaverHook(save_steps=100,output_dir=args['logpath'],summary_op=train_summary))
-    #            
-    ## Add an op to initialize the variables.
-    #init_global_op = tf.global_variables_initializer()
-    #init_local_op = tf.local_variables_initializer()
-    #
-    ##checkpointing hook
-    #if args["is_chief"]:
-    #    checkpoint_save_freq = np.min([args["steps_per_epoch"], 500])
-    #    model_saver = tf.train.Saver(max_to_keep = 1000)
-    #    hooks.append(tf.train.CheckpointSaverHook(checkpoint_dir=args['modelpath'], save_steps=checkpoint_save_freq, saver=model_saver))
-    #
-    ##print parameters
-    #if args["is_chief"]:
-    #    for k,v in args.items():
-    #        print("{k}: {v}".format(k=k,v=v))
-    #    
-    #    #print start command
-    #    print("Starting training using "+args['optimizer']+" optimizer")
-    #        
-    #with tf.train.MonitoredTrainingSession(config=sess_config, hooks=hooks) as sess:
-    #    
-    #    #initialize variables
-    #    sess.run([init_global_op, init_local_op])
-    #        
-    #    #init iterator handle
-    #    iterator_train_handle, iterator_validation_handle = sess.run([iterator_train_handle_string, iterator_validation_handle_string])
-    #    
-    #    #restore weights belonging to graph
-    #    if not args['restart'] and args["is_chief"]:
-    #        bc.load_model(sess, model_saver, args['modelpath'])
-    #        
-    #    #broadcast model
-    #    sess.run(init_bcast)
-    #    
-    #    #feed dicts
-    #    feed_dict_train={variables['iterator_handle_']: iterator_train_handle, variables['keep_prob_']: args['dropout_p']}
-    #    feed_dict_validation={variables['iterator_handle_']: iterator_validation_handle, variables['keep_prob_']: 1.0}
-    #    
-    #    #ops dict
-    #    ops = {"train_step" : train_step,
-    #            "loss_eval": loss_avg_fn,
-    #            "global_step": global_step,
-    #            "acc_update": accuracy_fn[1],
-    #            "acc_eval": accuracy_avg_fn,
-    #            "auc_update": auc_fn[1],
-    #            "auc_eval": auc_avg_fn
-    #            }
-    #            
-    #    #determine if we need a summary
-    #    if args['create_summary'] and args["is_chief"]:
-    #        ops["train_summary"] = train_summary
-    #    else:
-    #        ops["train_summary"] = None
-    #    
-    #    #do the training loop
-    #    total_time = time.time()
-    #    train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterator_validation_init_op, feed_dict_validation)
-    #    total_time -= time.time()
-    #    if args["is_chief"]:
-    #        print("FINISHED Training. Total time %g"%(total_time))
+    args["steps_per_epoch"] = args["trainsamples"] // (args["train_batch_size"] * args["num_workers"])
+    args["last_step"] = args["steps_per_epoch"] * args["num_epochs"]
+    if args["is_chief"]:
+        print("Stopping after %d global steps, doing %d steps per epoch"%(args["last_step"],args["steps_per_epoch"]))
+        
+        #set up file infrastructure
+        if not os.path.isdir(args['logpath']):
+            print("Creating log directory ",args['logpath'])
+            os.makedirs(args['logpath'])
+        if not os.path.isdir(args['modelpath']):
+            print("Creating model directory ",args['modelpath'])
+            os.makedirs(args['modelpath'])
+        if not os.path.isdir(args['inputpath']) and not args['dummy_data']:
+            raise ValueError("Please specify a valid path with input files in hdf5 format")
+    
+    # Train Model
+    #determining which model to load:
+    metafilelist = [args['modelpath']+'/'+x for x in os.listdir(args['modelpath']) if x.endswith('.meta')]
+    if not metafilelist:
+        #no model found, restart from scratch
+        args['restart']=True
+    
+    #a hook that will stop training at a certain number of steps
+    hooks=[tf.train.StopAtStepHook(last_step=args["last_step"])]
+            
+    #global step that either gets updated after any node processes a batch (async) or when all nodes process a batch for a given iteration (sync)
+    global_step = tf.train.get_or_create_global_step()
+    opt = args['opt_func'](**args['opt_args'])
+                
+    #only sync update supported
+    opt = hvd.DistributedOptimizer(opt)
+    
+    #broadcasting model
+    init_bcast = hvd.broadcast_global_variables(0)
+                
+    #create train step handle
+    train_step = opt.minimize(loss_fn, global_step=global_step)
+                
+    #creating summary
+    if args['create_summary']:
+        if args["is_chief"]:
+            summary_loss = tf.summary.scalar("loss",loss_fn)
+            train_summary = tf.summary.merge([summary_loss])
+            hooks.append(tf.train.StepCounterHook(every_n_steps=100,output_dir=args['logpath']))
+            hooks.append(tf.train.SummarySaverHook(save_steps=100,output_dir=args['logpath'],summary_op=train_summary))
+                
+    # Add an op to initialize the variables.
+    init_global_op = tf.global_variables_initializer()
+    init_local_op = tf.local_variables_initializer()
+    
+    #checkpointing hook
+    if args["is_chief"]:
+        checkpoint_save_freq = np.min([args["steps_per_epoch"], 500])
+        model_saver = tf.train.Saver(max_to_keep = 1000)
+        hooks.append(tf.train.CheckpointSaverHook(checkpoint_dir=args['modelpath'], save_steps=checkpoint_save_freq, saver=model_saver))
+    
+    #print parameters
+    if args["is_chief"]:
+        for k,v in args.items():
+            print("{k}: {v}".format(k=k,v=v))
+        
+        #print start command
+        print("Starting training using "+args['optimizer']+" optimizer")
+            
+    with tf.train.MonitoredTrainingSession(config=sess_config, hooks=hooks) as sess:
+        
+        #initialize variables
+        sess.run([init_global_op, init_local_op])
+            
+        #init iterator handle
+        iterator_train_handle, iterator_validation_handle = sess.run([iterator_train_handle_string, iterator_validation_handle_string])
+        
+        #restore weights belonging to graph
+        if not args['restart'] and args["is_chief"]:
+            bc.load_model(sess, model_saver, args['modelpath'])
+            
+        #broadcast model
+        sess.run(init_bcast)
+        
+        #feed dicts
+        feed_dict_train={variables['iterator_handle_']: iterator_train_handle, variables['keep_prob_']: args['dropout_p']}
+        feed_dict_validation={variables['iterator_handle_']: iterator_validation_handle, variables['keep_prob_']: 1.0}
+        
+        #ops dict
+        ops = {"train_step" : train_step,
+                "loss_eval": loss_avg_fn,
+                "global_step": global_step,
+                "acc_update": accuracy_fn[1],
+                "acc_eval": accuracy_avg_fn,
+                "auc_update": auc_fn[1],
+                "auc_eval": auc_avg_fn
+                }
+                
+        #determine if we need a summary
+        if args['create_summary'] and args["is_chief"]:
+            ops["train_summary"] = train_summary
+        else:
+            ops["train_summary"] = None
+        
+        #do the training loop
+        total_time = time.time()
+        train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterator_validation_init_op, feed_dict_validation)
+        total_time -= time.time()
+        if args["is_chief"]:
+            print("FINISHED Training. Total time %g"%(total_time))
 
 #main
 if "__main__" in __name__:

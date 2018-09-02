@@ -462,7 +462,7 @@ def build_cnn_model(args):
     network.append(tf.nn.softmax(network[-1]))
     
     #return the network and variables
-    return variables,network
+    return variables, network
 
 
 # # Build Functions from the Network Output
@@ -470,7 +470,7 @@ def build_cnn_model(args):
 # In[ ]:
 
 #build the functions
-def build_functions(args,variables,network):
+def build_functions(args, variables, network):
     
     #loss function
     prediction = network[-1]
