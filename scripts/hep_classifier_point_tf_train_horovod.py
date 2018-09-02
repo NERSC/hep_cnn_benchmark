@@ -156,7 +156,7 @@ def evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_valida
             validation_loss += tmp_loss
             validation_batches += 1
             
-        except:
+        except tf.errors.OutOfRangeError:
             break
     
     #report the results
@@ -224,11 +224,11 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
                 
             if gstep%args['validation_interval']==0:
                 evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, "REPORT")
-    
-        except:
+        
+        except tf.errors.OutOfRangeError:
             #get global step:
             gstep = sess.run(global_step)
-
+        
             #reinit iterator for next round
             sess.run(iterator_train_init_op, feed_dict=feed_dict_train)
             
@@ -341,7 +341,7 @@ def main():
     dataset_train = dataset_train.interleave(lambda filename, label: tf.data.Dataset.from_generator(root_train_gen, \
                                                                                 output_types = (tf.float32, tf.int32), \
                                                                                 output_shapes = ((args["num_points"],6), ()), \
-                                                                                args=[filename, label]), cycle_length = 8, block_length = 10)
+                                                                                args=[filename, label]), cycle_length = 4, block_length = 10)
     #shuffle between files to avoid having alternating behaviour
     dataset_train = dataset_train.prefetch(16*args['train_batch_size'])
     dataset_train = dataset_train.shuffle(buffer_size=8*args['train_batch_size'])
@@ -370,7 +370,7 @@ def main():
     dataset_validation = dataset_validation.interleave(lambda filename, label: tf.data.Dataset.from_generator(root_validation_gen, \
                                                                                 output_types = (tf.float32, tf.int32), \
                                                                                 output_shapes = ((args["num_points"],6), ()), \
-                                                                                args=[filename, label]), cycle_length = 8, block_length = 10)
+                                                                                args=[filename, label]), cycle_length = 4, block_length = 10)
     #shuffle between files to avoid having alternating behaviour
     dataset_validation = dataset_validation.prefetch(16*args['validation_batch_size'])
     #dataset_validation = dataset_validation.shuffle(buffer_size=8*args['validation_batch_size']) #no need to shuffle that

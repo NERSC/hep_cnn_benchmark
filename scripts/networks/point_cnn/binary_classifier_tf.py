@@ -107,11 +107,11 @@ def build_pcnn_model(args):
     
     x_fact = 3
     xconv_params = [dict(zip(xconv_param_name, xconv_param)) for xconv_param in
-                    [(8, 1, -1, 16 * x_fact, []),
-                     (12, 2, 384, 32 * x_fact, []),
-                     (12, 2, 256, 48 * x_fact, []),
-                     (16, 2, 128, 64 * x_fact, []),
-                     (16, 3, 128, 128 * x_fact, [])]]
+                    [(4, 1, -1, 16 * x_fact, []),
+                     (6, 2, 64, 32 * x_fact, []),
+                     (6, 2, 48, 48 * x_fact, []),
+                     (8, 2, 32, 64 * x_fact, []),
+                     (8, 2, 24, 128 * x_fact, [])]]
     fc_params = [dict(zip(fc_param_name, fc_param)) for fc_param in
                         [(128 * x_fact, 1.-variables['keep_prob_']),
                         (64 * x_fact, 1.-variables['keep_prob_'])]]

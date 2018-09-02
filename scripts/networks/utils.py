@@ -111,10 +111,14 @@ class root_generator():
         self._dtype=dtype
     
     def __call__(self, filename, label):
-        with suppress_stdout_stderr():
-            self._tree = rnp.root2array(filename, treename='Delphes',
-                                  branches=self._branches, stop=None,
-                                  warn_missing_tree=True)
+        try:
+            with suppress_stdout_stderr():
+                self._tree = rnp.root2array(filename, treename='Delphes',
+                                      branches=self._branches, stop=None,
+                                      warn_missing_tree=True)
+        except:
+            print("Cannot open file {fname}".format(fname=filename))
+            return
         
         num_examples = self._tree['Tower.Eta'].shape[0]
         
