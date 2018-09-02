@@ -396,12 +396,12 @@ def main():
         if not os.path.isdir(args['inputpath']) and not args['dummy_data']:
             raise ValueError("Please specify a valid path with input files in hdf5 format")
     
-    # Train Model
-    #determining which model to load:
-    metafilelist = [args['modelpath']+'/'+x for x in os.listdir(args['modelpath']) if x.endswith('.meta')]
-    if not metafilelist:
-        #no model found, restart from scratch
-        args['restart']=True
+        # Train Model
+        #determining which model to load:
+        metafilelist = [args['modelpath']+'/'+x for x in os.listdir(args['modelpath']) if x.endswith('.meta')]
+        if not metafilelist:
+            #no model found, restart from scratch
+            args['restart']=True
     
     #a hook that will stop training at a certain number of steps
     hooks=[tf.train.StopAtStepHook(last_step=args["last_step"])]
@@ -454,7 +454,7 @@ def main():
         iterator_train_handle, iterator_validation_handle = sess.run([iterator_train_handle_string, iterator_validation_handle_string])
         
         #restore weights belonging to graph
-        if not args['restart'] and args["is_chief"]:
+        if args["is_chief"] and not args['restart']:
             utils.load_model(sess, model_saver, args['modelpath'])
             
         #broadcast model
