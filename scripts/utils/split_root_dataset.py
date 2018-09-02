@@ -3,6 +3,7 @@ from __future__ import print_function
 import os
 import argparse
 import numpy as np
+import fnmatch as fn
 #import root_numpy as rnp
 
 import glob
@@ -19,6 +20,8 @@ def parse_args():
             help='split fractions for train,validation,test')
     add_arg('--outputdir', type=str, required=True,
             help='Directories to write splitted data to')
+    add_arg('--excludelist', type=str, default=None, required=False,
+            help='Text file with list of files to exclude (wildcards supported)')
     return parser.parse_args()
 
 def main():
@@ -30,12 +33,22 @@ def main():
     #init seed
     np.random.seed(12345)
     
+    #parse excludelist
+    excludelist = []
+    if args.excludelist:
+        with open(args.excludelist,'r') as f:
+            excludelist = [x.replace('\n','') for x in f.readlines()]
+        print("Excluding ",excludelist)
+    
     #parse input and shuffle
     #signal
     signal_file_list = []
     for directory in args.inputdirs_signal:
         filelist = [os.path.join(directory,x) for x in os.listdir(directory) if x.endswith(".root")]
         signal_file_list += filelist
+    #remove stuff
+    if excludelist:
+        signal_file_list = filter(lambda x: all([not fn.fnmatch(x,y) for y in excludelist]), signal_file_list)
     signal_files = np.asarray(signal_file_list)
     #shuffle
     perm = np.random.permutation(len(signal_files))
@@ -46,6 +59,9 @@ def main():
     for directory in args.inputdirs_background:
         filelist = [os.path.join(directory,x) for x in os.listdir(directory) if x.endswith(".root")]
         background_file_list += filelist
+    #remove stuff
+    if excludelist:
+        background_file_list = filter(lambda x: all([not fn.fnmatch(x,y) for y in excludelist]), background_file_list)
     background_files = np.asarray(background_file_list)
     #shuffle
     perm = np.random.permutation(len(background_files))
