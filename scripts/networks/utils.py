@@ -126,7 +126,7 @@ class root_generator():
         tracks = map(self.transform_tracks_to_pointcloud, self._tree['Track.Eta'], self._tree['Track.Phi'])
         tracks = np.stack(tracks, axis=0)
         #stack all of it together
-        data = np.stack([calohits,tracks],axis=1)
+        data = np.concatenate([calohits,tracks],axis=1)
         
         if self._shuffle:
             perm = np.random.permutation(num_examples)
