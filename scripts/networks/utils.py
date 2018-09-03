@@ -4,6 +4,7 @@ import h5py as h5
 import itertools
 import numpy as np
 try:
+    from rootpy.io import root_open
     import root_numpy as rnp
 except:
     print("Warning, no RootPy detected, cannot use ROOT iterators")
@@ -96,7 +97,7 @@ class root_generator():
                         np.ones(self._num_tracks, dtype=self._dtype)], axis=1)
         return result
     
-    def __init__(self, num_calorimeter_hits, num_tracks, shuffle=True, dtype=np.float32):
+    def __init__(self, num_calorimeter_hits, num_tracks, shuffle=True, blocksize=10, dtype=np.float32):
         self._shuffle = shuffle
         self._branches = {
             'Tower.Eta',
@@ -108,36 +109,45 @@ class root_generator():
         }
         self._num_calorimeter_hits = num_calorimeter_hits
         self._num_tracks = num_tracks
-        self._dtype=dtype
+        self._dtype = dtype
+        self._blocksize = blocksize
     
     def __call__(self, filename, label):
         try:
             with suppress_stdout_stderr():
-                self._tree = rnp.root2array(filename, treename='Delphes',
-                                      branches=self._branches, stop=None,
-                                      warn_missing_tree=True)
+                with root_open(filename) as f:
+                
+                    #get tree
+                    mtree = f['Delphes']
+                    num_examples = len(mtree)
+                
+                    #iterate over blocks
+                    for i in range(0, num_examples, self._blocksize):
+                        #determine read range
+                        start = i
+                        end = np.min([i+self._blocksize, num_examples])
+                        #read the tree
+                        tree = rnp.tree2array(mtree, branches=self._branches, start=start, stop=end)
+                    
+                        #preprocess
+                        #em hits
+                        calohits = map(self.transform_calohits_to_pointcloud, tree['Tower.Eta'], tree['Tower.Phi'], tree['Tower.E'], tree['Tower.Eem'])
+                        calohits = np.stack(calohits, axis=0)
+                        #tracks
+                        tracks = map(self.transform_tracks_to_pointcloud, tree['Track.Eta'], tree['Track.Phi'])
+                        tracks = np.stack(tracks, axis=0)
+                        #stack all of it together
+                        data = np.concatenate([calohits,tracks],axis=1)
+                
+                        if self._shuffle:
+                            perm = np.random.permutation(self._blocksize)
+                            data = data[perm]
+                        
+                        for i in range(data.shape[0]):
+                            yield data[i,...], label
         except:
             print("Cannot open file {fname}".format(fname=filename))
             return
-        
-        num_examples = self._tree['Tower.Eta'].shape[0]
-        
-        #preprocess
-        #em hits
-        calohits = map(self.transform_calohits_to_pointcloud, self._tree['Tower.Eta'], self._tree['Tower.Phi'], self._tree['Tower.E'], self._tree['Tower.Eem'])
-        calohits = np.stack(calohits, axis=0)
-        #tracks
-        tracks = map(self.transform_tracks_to_pointcloud, self._tree['Track.Eta'], self._tree['Track.Phi'])
-        tracks = np.stack(tracks, axis=0)
-        #stack all of it together
-        data = np.concatenate([calohits,tracks],axis=1)
-        
-        if self._shuffle:
-            perm = np.random.permutation(num_examples)
-            data = data[perm]
-            
-        for i in range(num_examples):
-            yield data[i,...], label
 
 
 #load model wrapper

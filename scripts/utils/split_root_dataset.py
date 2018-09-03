@@ -191,7 +191,7 @@ def main():
         #extract weights dict
         weightdf = pd.DataFrame(selectdf.groupby(['rpv', 'mglu', 'mneu']).apply(lambda x: x['weights'].iloc[0]).reset_index().rename(columns={0:'weights'}))
         weightdf['prefix'] = weightdf.apply(lambda x: 'RPV{rpv:d}_{mglu:d}_{mneu:d}'.format(rpv=int(x['rpv']), mglu=int(x['mglu']), mneu=int(x['mneu'])), axis=1)
-        sweights = {x[0]: x[1] for x in weightdf[['prefix', 'weights']].values}
+        sweights = {x[0]: {"weight": x[1], "label": 1} for x in weightdf[['prefix', 'weights']].values}
             
         #background
         outpath = os.path.join(args.outputdir, phase, "background")
@@ -206,11 +206,11 @@ def main():
         #extract weights dict
         weightdf = pd.DataFrame(selectdf.groupby(['jz', 'pt_lo', 'pt_hi']).apply(lambda x: x['weights'].iloc[0]).reset_index().rename(columns={0:'weights'}))
         weightdf['prefix'] = weightdf.apply(lambda x: 'QCDBkg_J{jz:d}_{ptl:d}_{pth:d}'.format(jz=int(x['jz']), ptl=int(x['pt_lo']), pth=int(x['pt_hi'])), axis=1)
-        bweights = {x[0]: x[1] for x in weightdf[['prefix', 'weights']].values}
+        bweights = {x[0]: {"weight": x[1], "label": 0} for x in weightdf[['prefix', 'weights']].values}
         
         #store weight dicts:
         outweights = {**sweights, **bweights}
-        with open(os.path.join(args.outputdir, phase, 'weights.json'), 'w') as f:
+        with open(os.path.join(args.outputdir, phase, 'metadata.json'), 'w') as f:
             json.dump(outweights, f)
     
 if __name__ == '__main__':

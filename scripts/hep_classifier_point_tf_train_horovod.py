@@ -65,6 +65,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.keras as tfk
 import horovod.tensorflow as hvd
+tf.logging.set_verbosity(tf.logging.WARN)
 
 #housekeeping
 import networks.utils as utils
@@ -261,6 +262,8 @@ def main():
     os.environ["KMP_BLOCKTIME"] = "1"
     os.environ["KMP_SETTINGS"] = "1"
     os.environ["KMP_AFFINITY"]= "noverbose,granularity=fine,compact,1,0"
+    #loglevel
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
     
     #arch-specific stuff
     if args['arch']=='hsw':
@@ -323,7 +326,7 @@ def main():
     shuffle_seed_sg = 67890
     
     #training
-    root_train_gen = utils.root_generator(args['num_calorimeter_hits'], args['num_tracks'], shuffle=True)
+    root_train_gen = utils.root_generator(args['num_calorimeter_hits'], args['num_tracks'], shuffle=True, blocksize=10)
     dataset_train_bg = tf.data.Dataset.from_tensor_slices(trainfiles_bg)
     dataset_train_sg = tf.data.Dataset.from_tensor_slices(trainfiles_sg)
     if args['num_workers'] > 1:
@@ -352,7 +355,7 @@ def main():
     iterator_train_init_op = iterator_train.make_initializer(dataset_train)
     
     #validation
-    root_validation_gen = utils.root_generator(args['num_calorimeter_hits'], args['num_tracks'], shuffle=False)
+    root_validation_gen = utils.root_generator(args['num_calorimeter_hits'], args['num_tracks'], shuffle=False, blocksize=10)
     dataset_validation_bg = tf.data.Dataset.from_tensor_slices(validationfiles_bg)
     dataset_validation_sg = tf.data.Dataset.from_tensor_slices(validationfiles_sg)
     if args['num_workers'] > 1:
