@@ -315,10 +315,14 @@ def main():
     #training files
     trainfiles_bg = [os.path.join(args['inputpath'],"training","background",x) for x in os.listdir(os.path.join(args['inputpath'],"training","background")) if x and x.endswith('.root')]
     trainfiles_sg = [os.path.join(args['inputpath'],"training","signal",x) for x in os.listdir(os.path.join(args['inputpath'],"training","signal")) if x and x.endswith('.root')]
+    with open(os.path.join(args['inputpath'], "training", "metadata.json"), 'r') as f:
+        trainfiles_meta = json.loads(f.read())
         
     #validation files
     validationfiles_bg = [os.path.join(args['inputpath'],"validation","background",x) for x in os.listdir(os.path.join(args['inputpath'],"validation","background")) if x and x.endswith('.root')]
     validationfiles_sg = [os.path.join(args['inputpath'],"validation","signal",x) for x in os.listdir(os.path.join(args['inputpath'],"validation","signal")) if x and x.endswith('.root')]
+    with open(os.path.join(args['inputpath'], "validation", "metadata.json"), 'r') as f:
+        validationfiles_meta = json.loads(f.read())
     
     #create tensorflow datasets
     #use common seed so that each node has the same order and it can be sharded appropriately
