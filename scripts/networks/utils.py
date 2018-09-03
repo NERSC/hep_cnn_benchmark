@@ -114,37 +114,37 @@ class root_generator():
     
     def __call__(self, filename, label):
         try:
-            with suppress_stdout_stderr():
-                with root_open(filename) as f:
+            #with suppress_stdout_stderr():
+            with root_open(filename) as f:
+            
+                #get tree
+                mtree = f['Delphes']
+                num_examples = len(mtree)
+            
+                #iterate over blocks
+                for i in range(0, num_examples, self._blocksize):
+                    #determine read range
+                    start = i
+                    end = np.min([i+self._blocksize, num_examples])
+                    #read the tree
+                    tree = rnp.tree2array(mtree, branches=self._branches, start=start, stop=end)
                 
-                    #get tree
-                    mtree = f['Delphes']
-                    num_examples = len(mtree)
-                
-                    #iterate over blocks
-                    for i in range(0, num_examples, self._blocksize):
-                        #determine read range
-                        start = i
-                        end = np.min([i+self._blocksize, num_examples])
-                        #read the tree
-                        tree = rnp.tree2array(mtree, branches=self._branches, start=start, stop=end)
+                    #preprocess
+                    #em hits
+                    calohits = map(self.transform_calohits_to_pointcloud, tree['Tower.Eta'], tree['Tower.Phi'], tree['Tower.E'], tree['Tower.Eem'])
+                    calohits = np.stack(calohits, axis=0)
+                    #tracks
+                    tracks = map(self.transform_tracks_to_pointcloud, tree['Track.Eta'], tree['Track.Phi'])
+                    tracks = np.stack(tracks, axis=0)
+                    #stack all of it together
+                    data = np.concatenate([calohits,tracks],axis=1)
+            
+                    if self._shuffle:
+                        perm = np.random.permutation(self._blocksize)
+                        data = data[perm]
                     
-                        #preprocess
-                        #em hits
-                        calohits = map(self.transform_calohits_to_pointcloud, tree['Tower.Eta'], tree['Tower.Phi'], tree['Tower.E'], tree['Tower.Eem'])
-                        calohits = np.stack(calohits, axis=0)
-                        #tracks
-                        tracks = map(self.transform_tracks_to_pointcloud, tree['Track.Eta'], tree['Track.Phi'])
-                        tracks = np.stack(tracks, axis=0)
-                        #stack all of it together
-                        data = np.concatenate([calohits,tracks],axis=1)
-                
-                        if self._shuffle:
-                            perm = np.random.permutation(self._blocksize)
-                            data = data[perm]
-                        
-                        for i in range(data.shape[0]):
-                            yield data[i,...], label
+                    for i in range(data.shape[0]):
+                        yield data[i,...], label
         except:
             print("Cannot open file {fname}".format(fname=filename))
             return

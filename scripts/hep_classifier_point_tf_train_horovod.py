@@ -262,8 +262,8 @@ def main():
     os.environ["KMP_BLOCKTIME"] = "1"
     os.environ["KMP_SETTINGS"] = "1"
     os.environ["KMP_AFFINITY"]= "noverbose,granularity=fine,compact,1,0"
-    #loglevel
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+    ##loglevel
+    #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
     
     #arch-specific stuff
     if args['arch']=='hsw':
