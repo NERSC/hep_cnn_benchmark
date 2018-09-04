@@ -97,7 +97,7 @@ class root_generator():
                         np.ones(self._num_tracks, dtype=self._dtype)], axis=1)
         return result
     
-    def __init__(self, num_calorimeter_hits, num_tracks, shuffle=True, blocksize=10, dtype=np.float32):
+    def __init__(self, num_calorimeter_hits, num_tracks, metadata, shuffle=True, blocksize=10, dtype=np.float32):
         self._shuffle = shuffle
         self._branches = {
             'Tower.Eta',
@@ -111,8 +111,18 @@ class root_generator():
         self._num_tracks = num_tracks
         self._dtype = dtype
         self._blocksize = blocksize
+        self._metadata = metadata
     
-    def __call__(self, filename, label):
+    def __call__(self, filename):
+        try:
+            #determine label and weights
+            basename = os.path.basename(filename).split("-10k")[0]
+            label = self._metadata[basename]['label']
+            weight = self._metadata[basename]['weight']
+        except:
+            print("Error, file name {fname} not in metadata index.".format(fname=filename))
+            return
+        
         try:
             #with suppress_stdout_stderr():
             with root_open(filename) as f:
@@ -144,7 +154,7 @@ class root_generator():
                         data = data[perm]
                     
                     for i in range(data.shape[0]):
-                        yield data[i,...], label
+                        yield data[i,...], label, weight
         except:
             print("Cannot open file {fname}".format(fname=filename))
             return

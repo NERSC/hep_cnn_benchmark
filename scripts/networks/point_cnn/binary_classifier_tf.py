@@ -90,15 +90,16 @@ def build_pcnn_model(args):
     
     #create input tensors
     handle = tf.placeholder(tf.string, shape=[], name="iterator-placeholder")
-    iterator = tf.data.Iterator.from_string_handle(handle, (tf.float32, tf.int32),
+    iterator = tf.data.Iterator.from_string_handle(handle, (tf.float32, tf.int32, tf.float32),
                                                             ((args["train_batch_size"], args['num_points'], 6), \
+                                                            (args["train_batch_size"]),
                                                             (args["train_batch_size"])))
     next_elem = iterator.get_next()
     variables['iterator_'] = iterator
     variables['iterator_handle_'] = handle
     variables['hits_'] = next_elem[0]
     variables['labels_'] = next_elem[1]
-    variables['weights_'] = tf.constant(1., tf.float32, [args["train_batch_size"]])
+    variables['weights_'] = next_elem[2]
     variables['keep_prob_'] = tf.placeholder(dtype)
     
     #build the calorimeter part

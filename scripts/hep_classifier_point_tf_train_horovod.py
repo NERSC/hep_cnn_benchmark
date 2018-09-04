@@ -330,25 +330,24 @@ def main():
     shuffle_seed_sg = 67890
     
     #training
-    root_train_gen = utils.root_generator(args['num_calorimeter_hits'], args['num_tracks'], shuffle=True, blocksize=10)
+    root_train_gen = utils.root_generator(args['num_calorimeter_hits'], args['num_tracks'], trainfiles_meta, shuffle=True, blocksize=10)
     dataset_train_bg = tf.data.Dataset.from_tensor_slices(trainfiles_bg)
     dataset_train_sg = tf.data.Dataset.from_tensor_slices(trainfiles_sg)
     if args['num_workers'] > 1:
         dataset_train_bg = dataset_train_bg.shard(args['num_workers'], args["task_index"])
         dataset_train_sg = dataset_train_sg.shard(args['num_workers'], args["task_index"])
     #shuffle files independently
-    dataset_train_bg = dataset_train_bg.shuffle(len(trainfiles_bg) // args['num_workers'], seed=shuffle_seed_bg)
-    dataset_train_sg = dataset_train_sg.shuffle(len(trainfiles_sg) // args['num_workers'], seed=shuffle_seed_sg)
-    #map the labels
-    dataset_train_bg = dataset_train_bg.map(lambda x: (x, 0))
-    dataset_train_sg = dataset_train_sg.map(lambda x: (x, 1))
+    if len(trainfiles_bg) > args['num_workers']:
+        dataset_train_bg = dataset_train_bg.shuffle(len(trainfiles_bg) // args['num_workers'], seed=shuffle_seed_bg)
+    if len(trainfiles_sg) > args['num_workers']:
+        dataset_train_sg = dataset_train_sg.shuffle(len(trainfiles_sg) // args['num_workers'], seed=shuffle_seed_sg)
     #zip it up and flatten the stuff
     dataset_train = tf.data.Dataset.zip((dataset_train_bg, dataset_train_sg)).flat_map(lambda x0, x1: tf.data.Dataset.from_tensors(x0).concatenate(tf.data.Dataset.from_tensors(x1)))
     #now we have signal and background interleaved, with equal amount of files training and bg.
-    dataset_train = dataset_train.interleave(lambda filename, label: tf.data.Dataset.from_generator(root_train_gen, \
-                                                                                output_types = (tf.float32, tf.int32), \
-                                                                                output_shapes = ((args["num_points"],6), ()), \
-                                                                                args=[filename, label]), cycle_length = 4, block_length = 10)
+    dataset_train = dataset_train.interleave(lambda filename: tf.data.Dataset.from_generator(root_train_gen, \
+                                                                                output_types = (tf.float32, tf.int32, tf.float32), \
+                                                                                output_shapes = ((args["num_points"],6), (), ()), \
+                                                                                args=[filename]), cycle_length = 4, block_length = 10)
     #shuffle between files to avoid having alternating behaviour
     dataset_train = dataset_train.prefetch(16*args['train_batch_size'])
     dataset_train = dataset_train.shuffle(buffer_size=8*args['train_batch_size'])
@@ -359,25 +358,24 @@ def main():
     iterator_train_init_op = iterator_train.make_initializer(dataset_train)
     
     #validation
-    root_validation_gen = utils.root_generator(args['num_calorimeter_hits'], args['num_tracks'], shuffle=False, blocksize=10)
+    root_validation_gen = utils.root_generator(args['num_calorimeter_hits'], args['num_tracks'], validationfiles_meta, shuffle=False, blocksize=10)
     dataset_validation_bg = tf.data.Dataset.from_tensor_slices(validationfiles_bg)
     dataset_validation_sg = tf.data.Dataset.from_tensor_slices(validationfiles_sg)
     if args['num_workers'] > 1:
         dataset_validation_bg = dataset_validation_bg.shard(args['num_workers'], args["task_index"])
         dataset_validation_sg = dataset_validation_sg.shard(args['num_workers'], args["task_index"])
     #shuffle files independently
-    dataset_validation_bg = dataset_validation_bg.shuffle(len(validationfiles_bg) // args['num_workers'], seed=shuffle_seed_bg)
-    dataset_validation_sg = dataset_validation_sg.shuffle(len(validationfiles_sg) // args['num_workers'], seed=shuffle_seed_sg)
-    #map the labels
-    dataset_validation_bg = dataset_validation_bg.map(lambda x: (x, 0))
-    dataset_validation_sg = dataset_validation_sg.map(lambda x: (x, 1))
+    if len(validationfiles_bg) > args['num_workers']:
+        dataset_validation_bg = dataset_validation_bg.shuffle(len(validationfiles_bg) // args['num_workers'], seed=shuffle_seed_bg)
+    if len(validationfiles_sg) > args['num_workers']:
+        dataset_validation_sg = dataset_validation_sg.shuffle(len(validationfiles_sg) // args['num_workers'], seed=shuffle_seed_sg)
     #zip it up and flatten the stuff
     dataset_validation = tf.data.Dataset.zip((dataset_validation_bg, dataset_validation_sg)).flat_map(lambda x0, x1: tf.data.Dataset.from_tensors(x0).concatenate(tf.data.Dataset.from_tensors(x1)))
     #now we have signal and background interleaved, with equal amount of files validationing and bg.
-    dataset_validation = dataset_validation.interleave(lambda filename, label: tf.data.Dataset.from_generator(root_validation_gen, \
-                                                                                output_types = (tf.float32, tf.int32), \
-                                                                                output_shapes = ((args["num_points"],6), ()), \
-                                                                                args=[filename, label]), cycle_length = 4, block_length = 10)
+    dataset_validation = dataset_validation.interleave(lambda filename: tf.data.Dataset.from_generator(root_validation_gen, \
+                                                                                output_types = (tf.float32, tf.int32, tf.float32), \
+                                                                                output_shapes = ((args["num_points"],6), (), ()), \
+                                                                                args=[filename]), cycle_length = 4, block_length = 10)
     #shuffle between files to avoid having alternating behaviour
     dataset_validation = dataset_validation.prefetch(16*args['validation_batch_size'])
     #dataset_validation = dataset_validation.shuffle(buffer_size=8*args['validation_batch_size']) #no need to shuffle that

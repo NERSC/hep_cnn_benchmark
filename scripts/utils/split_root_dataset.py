@@ -205,7 +205,7 @@ def main():
         
         #extract weights dict
         weightdf = pd.DataFrame(selectdf.groupby(['jz', 'pt_lo', 'pt_hi']).apply(lambda x: x['weights'].iloc[0]).reset_index().rename(columns={0:'weights'}))
-        weightdf['prefix'] = weightdf.apply(lambda x: 'QCDBkg_J{jz:d}_{ptl:d}_{pth:d}'.format(jz=int(x['jz']), ptl=int(x['pt_lo']), pth=int(x['pt_hi'])), axis=1)
+        weightdf['prefix'] = weightdf.apply(lambda x: 'QCDBkg_JZ{jz:d}_{ptl:d}_{pth:d}'.format(jz=int(x['jz']), ptl=int(x['pt_lo']), pth=int(x['pt_hi'])), axis=1)
         bweights = {x[0]: {"weight": x[1], "label": 0} for x in weightdf[['prefix', 'weights']].values}
         
         #store weight dicts:
