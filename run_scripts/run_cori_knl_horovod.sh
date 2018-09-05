@@ -53,9 +53,10 @@ module load python/3.6-anaconda-4.4
 source activate thorstendl-cori-2.7
 
 #prepare run directory
-configfile=cori_knl_224_adam.json
+#configfile=cori_knl_224_adam.json
+configfile=cori_knl_224_adam_lrschedule.json
 basedir=/global/cscratch1/sd/tkurth/atlas_dl/benchmark_runs
-rundir=${basedir}/run_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
+rundir=${basedir}/run_schedule2_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
 #rundir=${basedir}/run_nnodes1_j14367078
 
 #create directory

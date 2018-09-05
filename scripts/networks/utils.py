@@ -119,8 +119,8 @@ class root_generator():
             basename = os.path.basename(filename).split("-10k")[0]
             label = self._metadata[basename]['label']
             weight = self._metadata[basename]['weight']
-        except:
-            print("Error, file name {fname} not in metadata index.".format(fname=filename))
+        except Exception as error:
+            print("Error, for looking up {basename} in metadata: {err}".format(basename=basename, err=error))
             return
         
         try:
@@ -155,8 +155,8 @@ class root_generator():
                     
                     for i in range(data.shape[0]):
                         yield data[i,...], label, weight
-        except:
-            print("Cannot open file {fname}".format(fname=filename))
+        except Exception as error:
+            print("Error: cannot open file {fname}: {err}".format(fname=filename, err=error))
             return
 
 

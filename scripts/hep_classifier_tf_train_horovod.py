@@ -107,13 +107,6 @@ def parse_arguments():
         args['conv_params']['initializer'] = tfk.initializers.he_normal()
     else:
         raise ValueError('Only ReLU is supported as initializer')
-        
-    #modify the optimizers
-    args['opt_args'] = {"learning_rate": args['learning_rate']}
-    if args['optimizer'] == 'ADAM':
-        args['opt_func'] = tf.train.AdamOptimizer
-    else:
-        raise ValueError('Only ADAM is supported as optimizer')
     
     #now, see if all the paths are there
     args['logpath'] = args['outputpath']+'/logs'
@@ -390,6 +383,25 @@ def main():
             
     #global step that either gets updated after any node processes a batch (async) or when all nodes process a batch for a given iteration (sync)
     global_step = tf.train.get_or_create_global_step()
+    
+    #setup the optimizers
+    #learning rate
+    if isinstance(args['learning_rate'],float):
+        args['opt_args'] = {"learning_rate": args['learning_rate']}
+    elif isinstance(args['learning_rate'],dict):
+        schedule = sorted(args['learning_rate'].items(), key=lambda x: int(x[0]))
+        boundaries = [int(x[0]) for x in schedule]
+        rates = [float(x[1]) for x in schedule]
+        rates = rates[:1] + rates
+        args['opt_args'] = {"learning_rate": tf.train.piecewise_constant(tf.cast(global_step, tf.int32), boundaries, rates)}
+    else:
+        raise ValueError("Error, learning rate needs to be either a float or a dictionary.")
+    #solver
+    if args['optimizer'] == 'ADAM':
+        args['opt_func'] = tf.train.AdamOptimizer
+    else:
+        raise ValueError('Only ADAM is supported as optimizer')
+    #finalize opt args
     opt = args['opt_func'](**args['opt_args'])
                 
     #only sync update supported
