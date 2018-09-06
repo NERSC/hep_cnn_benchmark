@@ -266,9 +266,15 @@ def main():
         
     #create tensorflow datasets
     #test
-    dataset_test = tf.data.Dataset.from_generator(testset.next, 
-                                                        output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), 
-                                                        output_shapes = (args['input_shape'], (1), (1), (1), (1)))
+    h5_test_gen = utils.hdf5_generator(shuffle=False, data_format=args["conv_params"]['data_format'])
+    dataset_test = tf.data.Dataset.from_tensor_slices(testfiles)
+    if args['num_workers'] > 1:
+        dataset_test = dataset_test.shard(args['num_workers'], args["task_index"])
+    dataset_test = dataset_test.shuffle(len(testfiles) // args['num_workers'], seed=shuffle_seed)
+    dataset_test = dataset_test.interleave(lambda filename: tf.data.Dataset.from_generator(h5_test_gen, \
+                                                                                    output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), \
+                                                                                    output_shapes = (args['input_shape'], (), (), (), ()), \
+                                                                                    args=[filename]), cycle_length = 4, block_length = 1)
     dataset_test = dataset_test.prefetch(args['test_batch_size_per_node'])
     dataset_test = dataset_test.apply(tf.contrib.data.batch_and_drop_remainder(args['test_batch_size_per_node']))
     dataset_test = dataset_test.repeat(1)
