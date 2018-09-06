@@ -3,7 +3,7 @@
 #SBATCH -A dasrepo
 #SBATCH -C knl
 #SBATCH -t 4:00:00
-#SBATCH -J hep_train_tf
+#SBATCH -J hep_inference_tf
 
 #*** License Agreement ***
 #
@@ -49,22 +49,22 @@
 
 
 # Environment
-module load python/3.6-anaconda-4.4
-source activate thorstendl-cori-2.7
+module load tensorflow/intel-1.8.0-py36
+export PYTHONPATH=$PWD:$PYTHONPATH
 
 #prepare run directory
-#configfile=cori_knl_224_adam.json
-configfile=cori_knl_224_adam_lrschedule3.json
+configfile=cori_knl_224_adam.json
 basedir=/global/cscratch1/sd/tkurth/atlas_dl/benchmark_runs
-rundir=${basedir}/run_schedule3_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
-#rundir=${basedir}/run_schedule2_nnodes16_j14608729
+#rundir=${basedir}/run_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
 #rundir=${basedir}/run_nnodes1_j14367078
+#rundir=${basedir}/run_small_nnodes1_j14415814
+rundir=${basedir}/run_nnodes2_j14412531
 
 #create directory
 mkdir -p ${rundir}
 
 #stage in scripts
-cp ../scripts/hep_classifier_tf_train_horovod.py ${rundir}/
+cp ../scripts/hep_classifier_tf_inference.py ${rundir}/
 cp -r ../scripts/networks ${rundir}/
 cp ../configs/${configfile} ${rundir}/
 
@@ -74,6 +74,5 @@ cd ${rundir}
 # Run
 set -x
 srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u \
-    python hep_classifier_tf_train_horovod.py \
-    --config=${configfile} \
-    --num_tasks=${SLURM_NNODES} |& tee out.fp32.lag0.${SLURM_JOBID}
+    python hep_classifier_tf_inference.py \
+    --config=${configfile} |& tee out.fp32.lag0.${SLURM_JOBID}
