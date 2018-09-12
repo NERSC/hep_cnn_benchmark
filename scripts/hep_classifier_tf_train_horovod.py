@@ -325,8 +325,8 @@ def main():
     dataset_train = dataset_train.interleave(lambda filename: tf.data.Dataset.from_generator(h5_train_gen, \
                                                                         output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), \
                                                                         output_shapes = (args['input_shape'], (), (), (), ()), \
-                                                                        args=[filename]), cycle_length = 4, block_length = 1)
-    dataset_train = dataset_train.prefetch(args['train_batch_size_per_node'])
+                                                                        args=[filename]), cycle_length = 4, block_length = 16)
+    dataset_train = dataset_train.prefetch(4*args['train_batch_size_per_node'])
     dataset_train = dataset_train.apply(tf.contrib.data.batch_and_drop_remainder(args['train_batch_size_per_node']))
     dataset_train = dataset_train.repeat(1)
     #do some weight-preprocessing
@@ -344,8 +344,8 @@ def main():
     dataset_validation = dataset_validation.interleave(lambda filename: tf.data.Dataset.from_generator(h5_validation_gen, \
                                                                                     output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), \
                                                                                     output_shapes = (args['input_shape'], (), (), (), ()), \
-                                                                                    args=[filename]), cycle_length = 4, block_length = 1)
-    dataset_validation = dataset_validation.prefetch(args['validation_batch_size_per_node'])
+                                                                                    args=[filename]), cycle_length = 4, block_length = 16)
+    dataset_validation = dataset_validation.prefetch(4*args['validation_batch_size_per_node'])
     dataset_validation = dataset_validation.apply(tf.contrib.data.batch_and_drop_remainder(args['validation_batch_size_per_node']))
     dataset_validation = dataset_validation.repeat(1)
     #do some weight-preprocessing

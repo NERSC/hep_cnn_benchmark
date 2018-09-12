@@ -54,7 +54,7 @@ source activate thorstendl-cori-2.7
 
 #prepare run directory
 #configfile=cori_knl_224_adam.json
-configfile=cori_knl_224_adam_lrschedule3.json
+configfile=cori_knl_224_adam.json
 basedir=/global/cscratch1/sd/tkurth/atlas_dl/benchmark_runs
 rundir=${basedir}/run_schedule3_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
 #rundir=${basedir}/run_schedule2_nnodes16_j14608729
