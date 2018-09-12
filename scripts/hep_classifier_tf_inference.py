@@ -68,40 +68,11 @@ import tensorflow.contrib.keras as tfk
 #housekeeping
 import networks.binary_classifier_tf as bc
 
-#sklearn stuff
-from sklearn import metrics
+#roc stuff
+from .utils import plot_roc_curve, load_model
 
-# Useful Functions
-def plot_roc_curve(predictions, labels, weights, psr, outputdir):
-    fpr, tpr, _ = metrics.roc_curve(labels, predictions, pos_label=1, sample_weight=weights)
-    fpr_cut, tpr_cut, _ = metrics.roc_curve(labels, psr, pos_label=1, sample_weight=weights)
-        
-    #plot the data
-    plt.figure()
-    lw = 2
-    #full curve
-    plt.plot(fpr, tpr, lw=lw, linestyle="-", label='ROC curve (area = {:0.2f})'.format(metrics.auc(fpr, tpr, reorder=True)))
-    
-    plt.scatter([fpr_cut],[tpr_cut], label='standard cuts')
-    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('Receiver operating characteristic example')
-    plt.legend(loc="lower right")
-    plt.savefig(os.path.join(outputdir,'ROC_1400_850.png'),dpi=300)
 
-    #zoomed-in
-    plt.xlim([0.0, 0.0004])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('Receiver operating characteristic example')
-    plt.legend(loc="lower right")
-    plt.savefig(os.path.join(outputdir,'ROC_1400_850_zoom.png'),dpi=300)
-    
-
+#evaluation loop
 def evaluate_loop(sess, ops, args, iterator_test_init_op, feed_dict_test, prefix):
     
     #reinit the test iterator
@@ -123,10 +94,10 @@ def evaluate_loop(sess, ops, args, iterator_test_init_op, feed_dict_test, prefix
         
         try:
             #compute loss
-            pred, labels, weights, psr, tmp_loss, _, _ = sess.run([ops["prediction_eval"], \
-                                                                     ops["label_eval"], \
-                                                                     ops["weight_eval"], \
-                                                                     ops["psr_eval"], \
+            pred, labels, weights, psr, tmp_loss, _, _ = sess.run([ops["prediction_eval"],
+                                                                     ops["label_eval"],
+                                                                     ops["weight_eval"],
+                                                                     ops["psr_eval"],
                                                                      ops["loss_eval"], 
                                                                      ops["acc_update"], 
                                                                      ops["auc_update"]], 
@@ -194,7 +165,7 @@ def parse_arguments():
     if not os.path.isdir(args['modelpath']):
         print("Creating model directory ",args['modelpath'])
         os.makedirs(args['modelpath'])
-    if not os.path.isdir(args['inputpath']) and not args['dummy_data']:
+    if not os.path.isdir(args['inputpath']):
         raise ValueError("Please specify a valid path with input files in hdf5 format")
     if not os.path.isdir(args['plotpath']):
         print("Creating plot directory ",args['plotpath'])
@@ -268,9 +239,7 @@ def main():
     #test
     h5_test_gen = utils.hdf5_generator(shuffle=False, data_format=args["conv_params"]['data_format'])
     dataset_test = tf.data.Dataset.from_tensor_slices(testfiles)
-    if args['num_workers'] > 1:
-        dataset_test = dataset_test.shard(args['num_workers'], args["task_index"])
-    dataset_test = dataset_test.shuffle(len(testfiles) // args['num_workers'], seed=shuffle_seed)
+    dataset_test = dataset_test.shuffle(len(testfiles), seed=shuffle_seed)
     dataset_test = dataset_test.interleave(lambda filename: tf.data.Dataset.from_generator(h5_test_gen, \
                                                                                     output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), \
                                                                                     output_shapes = (args['input_shape'], (), (), (), ()), \
@@ -289,7 +258,7 @@ def main():
     init_local_op = tf.local_variables_initializer()
             
     #saver class:
-    model_saver = tf.train.Saver()            
+    model_saver = tf.train.Saver()
             
     with tf.Session(config=sess_config) as sess:
         
@@ -300,7 +269,7 @@ def main():
         iterator_test_handle = sess.run(iterator_test_handle_string)
                     
         #restore weights belonging to graph
-        bc.load_model(sess, model_saver, args['modelpath'])
+        utils.load_model(sess, model_saver, args['modelpath'])
                     
         #feed dicts
         feed_dict_test={variables['iterator_handle_']: iterator_test_handle, variables['keep_prob_']: 1.}

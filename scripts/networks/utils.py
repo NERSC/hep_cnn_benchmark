@@ -3,11 +3,44 @@ import tensorflow as tf
 import h5py as h5
 import itertools
 import numpy as np
+from sklearn import metrics
+import matplotlib.pyplot as plt
 try:
     from rootpy.io import root_open
     import root_numpy as rnp
 except:
     print("Warning, no RootPy detected, cannot use ROOT iterators")
+
+
+# ROC curve
+def plot_roc_curve(predictions, labels, weights, psr, outputdir):
+    fpr, tpr, _ = metrics.roc_curve(labels, predictions, pos_label=1, sample_weight=weights)
+    fpr_cut, tpr_cut, _ = metrics.roc_curve(labels, psr, pos_label=1, sample_weight=weights)
+    
+    #plot the data
+    plt.figure()
+    lw = 2
+    #full curve
+    plt.plot(fpr, tpr, lw=lw, linestyle="-", label='ROC curve (area = {:0.2f})'.format(metrics.auc(fpr, tpr, reorder=True)))
+    
+    plt.scatter([fpr_cut],[tpr_cut], label='standard cuts')
+    plt.plot([0, 1], [0, 1], color='navy', lw=lw, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operating characteristic example')
+    plt.legend(loc="lower right")
+    plt.savefig(os.path.join(outputdir,'ROC_1400_850.png'),dpi=300)
+
+    #zoomed-in
+    plt.xlim([0.0, 0.0004])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operating characteristic example')
+    plt.legend(loc="lower right")
+    plt.savefig(os.path.join(outputdir,'ROC_1400_850_zoom.png'),dpi=300)
 
 
 #some helper for suppressing annoying output from subroutines

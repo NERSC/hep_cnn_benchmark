@@ -136,6 +136,7 @@ def build_functions(args, variables, logits):
     
     #loss function
     prediction = tf.nn.softmax(logits)
+    variables['prediction_'] = prediction
     tf.add_to_collection('prediction_op', prediction)
     
     #compute loss, important: use unscaled version!
