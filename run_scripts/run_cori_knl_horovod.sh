@@ -55,9 +55,10 @@ source activate thorstendl-cori-2.7
 #prepare run directory
 configfile=cori_knl_224_adam_small.json
 basedir=/global/cscratch1/sd/tkurth/atlas_dl/benchmark_runs
-rundir=${basedir}/run_small_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
+#rundir=${basedir}/run_small_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
 #rundir=${basedir}/run_schedule2_nnodes16_j14608729
 #rundir=${basedir}/run_nnodes1_j14367078
+rundir=${basedir}/run_small_nnodes1_j14779329
 
 #create directory
 mkdir -p ${rundir}

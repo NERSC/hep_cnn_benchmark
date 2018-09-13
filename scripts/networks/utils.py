@@ -107,30 +107,58 @@ class hdf5_generator():
 
 class root_generator():
     
-    def transform_calohits_to_pointcloud(self, eta, phi, energy, emfrac):
-        #perform sampling with replacement, only if there are fewer points than requested points
-        choice = np.random.choice(eta.shape[0], self._num_calorimeter_hits, replace=(eta.shape[0] < self._num_calorimeter_hits))
-        eta = eta[choice].astype(dtype=self._dtype)
-        phi = phi[choice].astype(dtype=self._dtype)
-        energy = energy[choice].astype(dtype=self._dtype)
-        emfrac = emfrac[choice].astype(dtype=self._dtype)
-        #pad with 0-class for emhits
-        result=np.stack([eta, np.cos(phi), np.sin(phi), energy, emfrac, np.zeros(self._num_calorimeter_hits, dtype=self._dtype)], axis=1)
-        return result
-            
-    def transform_tracks_to_pointcloud(self, eta, phi):
-        #perform sampling with replacement
-        choice = np.random.choice(eta.shape[0], self._num_tracks, replace=(eta.shape[0] < self._num_tracks))
-        eta = eta[choice].astype(dtype=self._dtype)
-        phi = phi[choice].astype(dtype=self._dtype)
-        #pad by zero for EM and EMfrac and one for tracks
-        result=np.stack([eta, np.cos(phi), np.sin(phi), \
-                        np.zeros(self._num_tracks, dtype=self._dtype), \
-                        np.zeros(self._num_tracks, dtype=self._dtype), \
-                        np.ones(self._num_tracks, dtype=self._dtype)], axis=1)
+    #merge event classes together and pick a subset
+    def transform_to_pointcloud(self, calo_eta, calo_phi, calo_energy, calo_emfrac, track_eta, track_phi):
+        #calorimeter hits
+        calo_eta = calo_eta.astype(dtype=self._dtype)
+        calo_phi = calo_phi.astype(dtype=self._dtype)
+        calo_energy = (calo_energy.astype(dtype=self._dtype) - self._metadata['calo_min']) / (self._metadata['calo_max'] - self._metadata['calo_min'])
+        calo_emfrac = (calo_emfrac.astype(dtype=self._dtype) - self._metadata['em_min']) / (self._metadata['em_max'] - self._metadata['em_min'])
+        calo_class = np.zeros(calo_eta.shape[0], dtype=self._dtype)
+        #stack
+        calo = np.stack([calo_eta, np.cos(calo_phi), np.sin(calo_phi), calo_energy, calo_emfrac, calo_class], axis=1)
+        
+        #tracks
+        track_eta = track_eta.astype(dtype=self._dtype)
+        track_phi = track_phi.astype(dtype=self._dtype)
+        track_energy = (np.zeros(track_eta.shape[0], dtype=self._dtype) - self._metadata['calo_min']) / (self._metadata['calo_max'] - self._metadata['calo_min'])
+        track_emfrac = (np.zeros(track_eta.shape[0], dtype=self._dtype) - self._metadata['em_min']) / (self._metadata['em_max'] - self._metadata['em_min'])
+        track_class = np.ones(track_eta.shape[0], dtype=self._dtype)
+        #stack
+        track = np.stack([track_eta, np.cos(track_phi), np.sin(track_phi), track_energy, track_emfrac, track_class], axis=1)
+        
+        #concatenate
+        result = np.concatenate([calo, track], axis=0)
+        
+        #pick random choice
+        choice = np.random.choice(result.shape[0], self._num_points, replace=(result.shape[0] < self._num_points))
+        result = result[choice]
+
         return result
     
-    def __init__(self, num_calorimeter_hits, num_tracks, metadata, shuffle=True, blocksize=10, dtype=np.float32):
+    #def transform_calohits_to_pointcloud(self, eta, phi, energy, emfrac):
+    #    #perform sampling with replacement, only if there are fewer points than requested points
+    #    choice = np.random.choice(eta.shape[0], self._num_calorimeter_hits, replace=(eta.shape[0] < self._num_calorimeter_hits))
+    #    eta = eta[choice].astype(dtype=self._dtype)
+    #    phi = phi[choice].astype(dtype=self._dtype)
+    #    energy = (energy[choice].astype(dtype=self._dtype) - self._metadata['calo_min']) / (self._metadata['calo_max'] - self._metadata['calo_min'])
+    #    emfrac = (emfrac[choice].astype(dtype=self._dtype) - self._metadata['em_min']) / (self._metadata['em_max'] - self._metadata['em_min'])
+    #    #pad with 0-class for emhits
+    #    result=np.stack([eta, np.cos(phi), np.sin(phi), energy, emfrac, np.zeros(self._num_calorimeter_hits, dtype=self._dtype)], axis=1)
+    #    return result
+    #        
+    #def transform_tracks_to_pointcloud(self, eta, phi):
+    #    #perform sampling with replacement
+    #    choice = np.random.choice(eta.shape[0], self._num_tracks, replace=(eta.shape[0] < self._num_tracks))
+    #    eta = eta[choice].astype(dtype=self._dtype)
+    #    phi = phi[choice].astype(dtype=self._dtype)
+    #    energy = (np.zeros(self._num_tracks, dtype=self._dtype) - self._metadata['calo_min']) / (self._metadata['calo_max'] - self._metadata['calo_min'])
+    #    emfrac = (np.zeros(self._num_tracks, dtype=self._dtype) - self._metadata['em_min']) / (self._metadata['em_max'] - self._metadata['em_min'])
+    #    #pad by zero for EM and EMfrac and one for tracks
+    #    result=np.stack([eta, np.cos(phi), np.sin(phi), energy, emfrac, np.ones(self._num_tracks, dtype=self._dtype)], axis=1)
+    #    return result
+    
+    def __init__(self, num_points, metadata, shuffle=True, blocksize=10, dtype=np.float32):
         self._shuffle = shuffle
         self._branches = {
             'Tower.Eta',
@@ -140,11 +168,14 @@ class root_generator():
             'Track.Eta',
             'Track.Phi'
         }
-        self._num_calorimeter_hits = num_calorimeter_hits
-        self._num_tracks = num_tracks
+        self._num_points = num_points
         self._dtype = dtype
         self._blocksize = blocksize
         self._metadata = metadata
+        
+        #reset minimum for calo and em:
+        self._metadata['em_min'] = np.min([self._metadata['em_min'], 0.])
+        self._metadata['calo_min'] = np.min([self._metadata['calo_min'], 0.])
     
     def __call__(self, filename):
         try:
@@ -172,22 +203,26 @@ class root_generator():
                     #read the tree
                     tree = rnp.tree2array(mtree, branches=self._branches, start=start, stop=end)
                 
-                    #preprocess
-                    #em hits
-                    calohits = map(self.transform_calohits_to_pointcloud, tree['Tower.Eta'], tree['Tower.Phi'], tree['Tower.E'], tree['Tower.Eem'])
-                    calohits = np.stack(calohits, axis=0)
-                    #tracks
-                    tracks = map(self.transform_tracks_to_pointcloud, tree['Track.Eta'], tree['Track.Phi'])
-                    tracks = np.stack(tracks, axis=0)
-                    #stack all of it together
-                    data = np.concatenate([calohits,tracks],axis=1)
-            
+                    #preproces
+                    data = map(self.transform_to_pointcloud, tree['Tower.Eta'], tree['Tower.Phi'], tree['Tower.E'], tree['Tower.Eem'], tree['Track.Eta'], tree['Track.Phi'])
+                    data = np.stack(data, axis=0)
+                    
+                    ##em hits
+                    #calohits = map(self.transform_calohits_to_pointcloud, tree['Tower.Eta'], tree['Tower.Phi'], tree['Tower.E'], tree['Tower.Eem'])
+                    #calohits = np.stack(calohits, axis=0)
+                    ##tracks
+                    #tracks = map(self.transform_tracks_to_pointcloud, tree['Track.Eta'], tree['Track.Phi'])
+                    #tracks = np.stack(tracks, axis=0)
+                    ##stack all of it together
+                    #data = np.concatenate([calohits,tracks],axis=1)
+                    
                     if self._shuffle:
                         perm = np.random.permutation(self._blocksize)
                         data = data[perm]
                     
                     for i in range(data.shape[0]):
                         yield data[i,...], label, weight
+                        
         except Exception as error:
             print("Error: cannot open file {fname}: {err}".format(fname=filename, err=error))
             return

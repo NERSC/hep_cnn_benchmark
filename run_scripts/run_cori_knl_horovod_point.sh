@@ -60,7 +60,7 @@ configfile=cori_knl_point_adam.json
 basedir=/global/cscratch1/sd/tkurth/atlas_dl/benchmark_runs
 rundir=${basedir}/run_point_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
 #rundir=${basedir}/run_point_nnodes1_j14569065
-rundir=${basedir}/run_point_nnodes1_j14607274
+#rundir=${basedir}/run_point_nnodes1_j14607274
 
 #create directory
 mkdir -p ${rundir}

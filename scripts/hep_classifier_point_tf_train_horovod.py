@@ -286,9 +286,6 @@ def main():
     if args["is_chief"]:
         print("Using ",num_inter_threads,"-way task parallelism with ",num_intra_threads,"-way data parallelism.")
     
-    #number of points
-    args["num_points"] = args['num_calorimeter_hits'] + args['num_tracks']
-    
     # Build Network and Functions
     if args["is_chief"]:
         print("Building model")
@@ -304,18 +301,26 @@ def main():
     # Setup Iterators
     if args["is_chief"]:
         print("Setting up iterators")
-        
+    
+    #stats files, independent of training or validations
+    with open(os.path.join(args['inputpath'], "stats.json"), 'r') as f:
+        stats_meta = json.loads(f.read())
+    
     #training files
     trainfiles_bg = [os.path.join(args['inputpath'],"training","background",x) for x in os.listdir(os.path.join(args['inputpath'],"training","background")) if x and x.endswith('.root')]
     trainfiles_sg = [os.path.join(args['inputpath'],"training","signal",x) for x in os.listdir(os.path.join(args['inputpath'],"training","signal")) if x and x.endswith('.root')]
     with open(os.path.join(args['inputpath'], "training", "metadata.json"), 'r') as f:
         trainfiles_meta = json.loads(f.read())
+    #fuse with stats
+    trainfiles_meta.update(stats_meta)
         
     #validation files
     validationfiles_bg = [os.path.join(args['inputpath'],"validation","background",x) for x in os.listdir(os.path.join(args['inputpath'],"validation","background")) if x and x.endswith('.root')]
     validationfiles_sg = [os.path.join(args['inputpath'],"validation","signal",x) for x in os.listdir(os.path.join(args['inputpath'],"validation","signal")) if x and x.endswith('.root')]
     with open(os.path.join(args['inputpath'], "validation", "metadata.json"), 'r') as f:
         validationfiles_meta = json.loads(f.read())
+    #fuse with stats
+    validationfiles_meta.update(stats_meta)
     
     #create tensorflow datasets
     #use common seed so that each node has the same order and it can be sharded appropriately
@@ -323,7 +328,7 @@ def main():
     shuffle_seed_sg = 67890
     
     #training
-    root_train_gen = utils.root_generator(args['num_calorimeter_hits'], args['num_tracks'], trainfiles_meta, shuffle=True, blocksize=10)
+    root_train_gen = utils.root_generator(args['num_points'], trainfiles_meta, shuffle=True, blocksize=10)
     dataset_train_bg = tf.data.Dataset.from_tensor_slices(trainfiles_bg)
     dataset_train_sg = tf.data.Dataset.from_tensor_slices(trainfiles_sg)
     if args['num_workers'] > 1:
@@ -351,7 +356,7 @@ def main():
     iterator_train_init_op = iterator_train.make_initializer(dataset_train)
     
     #validation
-    root_validation_gen = utils.root_generator(args['num_calorimeter_hits'], args['num_tracks'], validationfiles_meta, shuffle=False, blocksize=10)
+    root_validation_gen = utils.root_generator(args['num_points'], validationfiles_meta, shuffle=False, blocksize=10)
     dataset_validation_bg = tf.data.Dataset.from_tensor_slices(validationfiles_bg)
     dataset_validation_sg = tf.data.Dataset.from_tensor_slices(validationfiles_sg)
     if args['num_workers'] > 1:

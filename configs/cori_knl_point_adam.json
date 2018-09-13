@@ -1,7 +1,8 @@
 {
     "inputpath": "/global/cscratch1/sd/tkurth/atlas_dl/benchmark_data/point",
     "outputpath": ".",
-    "num_calorimeter_hits": 200,
+    "num_points": 250,
+    "num_calorimeter_hits": 150,
     "num_tracks": 100,
     "trainsamples": 726016,
     "arch" : "knl",
