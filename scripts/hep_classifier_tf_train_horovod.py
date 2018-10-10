@@ -230,6 +230,7 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
             
             #reset counters
             train_loss = 0.
+            train_lr = 0.
             train_batches = 0
             train_time = 0.
             
