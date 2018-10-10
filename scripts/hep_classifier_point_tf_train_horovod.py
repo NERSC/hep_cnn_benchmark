@@ -38,7 +38,7 @@
 # royalty-free perpetual license to install, use, modify, prepare derivative
 # works, incorporate into other computer software, distribute, and sublicense
 # such enhancements or derivative works thereof, in binary and source code form.
-#---------------------------------------------------------------      
+#---------------------------------------------------------------
 
 # Compatibility
 from __future__ import print_function
@@ -85,59 +85,59 @@ def parse_arguments():
     parser.add_argument("--config", type=str, help="specify a config file in json format")
     parser.add_argument("--num_tasks", type=int, default=1, help="specify the number of tasks")
     parser.add_argument("--precision", type=str, default="fp32", help="specify the precision. supported are fp32 and fp16")
-    parser.add_argument('--dummy_data', action='store_const', const=True, default=False, 
+    parser.add_argument('--dummy_data', action='store_const', const=True, default=False,
                         help='use dummy data instead of real data')
     pargs = parser.parse_args()
-    
+
     #load the json:
     with open(pargs.config,"r") as f:
         args = json.load(f)
-    
+
     #set the rest
     args['num_tasks'] = pargs.num_tasks
     args['num_ps'] = 0
     args['dummy_data'] = pargs.dummy_data
-    
+
     #modify the activations
     if args['conv_params']['activation'] == 'ReLU':
         args['conv_params']['activation'] = tf.nn.relu
     else:
         raise ValueError('Only ReLU is supported as activation')
-        
+
     #modify the initializers
     if args['conv_params']['initializer'] == 'HE':
         args['conv_params']['initializer'] = tfk.initializers.he_normal()
     else:
         raise ValueError('Only ReLU is supported as initializer')
-    
+
     #now, see if all the paths are there
     args['logpath'] = args['outputpath']+'/logs'
     args['modelpath'] = args['outputpath']+'/models'
-    
+
     #precision:
     args['precision'] = tf.float32
     if pargs.precision == "fp16":
         args['precision'] = tf.float16
-    
+
     return args
 
 
 def evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, prefix):
-    
+
     #reinit the validation iterator
     sess.run(iterator_validation_init_op, feed_dict=feed_dict_validation)
-    
+
     #compute validation loss:
     #reset variables
     validation_loss = 0.
     validation_batches = 0
-    
+
     #get global step:
     gstep = sess.run(ops["global_step"])
-    
+
     #iterate over validation set
     while validation_batches < args["validation_max_steps"]:
-        
+
         try:
             #compute loss
             if args['create_summary']:
@@ -145,14 +145,14 @@ def evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_valida
                                                     feed_dict=feed_dict_validation)
             else:
                 tmp_loss, _, _ = sess.run([ops["loss_eval"], ops["acc_update"], ops["auc_update"]], feed_dict=feed_dict_validation)
-    
+
             #add loss
             validation_loss += tmp_loss
             validation_batches += 1
-            
+
         except tf.errors.OutOfRangeError:
             break
-    
+
     #report the results
     validation_accuracy, validation_auc = sess.run([ops["acc_eval"], ops["auc_eval"]])
     if args["is_chief"]:
@@ -163,16 +163,16 @@ def evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_valida
 
 
 def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterator_validation_init_op, feed_dict_validation):
-    
+
     #counters
     epochs_completed = 0
-    
+
     #losses
     train_loss=0.
     train_batches=0
     total_batches=0
     train_time=0
-    
+
     #extract ops
     train_step = ops["train_step"]
     global_step = ops["global_step"]
@@ -181,30 +181,30 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
     acc_eval = ops["acc_eval"]
     auc_update = ops["auc_update"]
     auc_eval = ops["auc_eval"]
-    
+
     #init iterators
     sess.run(iterator_train_init_op, feed_dict=feed_dict_train)
-    
+
     #do training
     while not sess.should_stop():
-        
+
         #increment total batch counter
         total_batches+=1
-                
+
         try:
             start_time = time.time()
             if args['create_summary']:
                 _, gstep, summary, tmp_loss = sess.run([train_step, global_step, ops["train_summary"], loss_eval], feed_dict=feed_dict_train)
             else:
-                _, gstep, tmp_loss = sess.run([train_step, global_step, loss_eval], feed_dict=feed_dict_train)        
+                _, gstep, tmp_loss = sess.run([train_step, global_step, loss_eval], feed_dict=feed_dict_train)
             end_time = time.time()
             train_time += end_time-start_time
-            
+
             #increment train loss and batch number
             train_loss += tmp_loss
             total_batches += 1
             train_batches += 1
-            
+
             #determine if we give a short update:
             if gstep%args['display_interval']==0:
                 if args["is_chief"]:
@@ -215,22 +215,22 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
                 train_batches = 0
                 train_loss = 0.
                 train_time = 0.
-                
+
             if gstep%args['validation_interval']==0:
                 evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, "REPORT")
-        
+
         except tf.errors.OutOfRangeError:
             #get global step:
             gstep = sess.run(global_step)
-        
+
             #reinit iterator for next round
             sess.run(iterator_train_init_op, feed_dict=feed_dict_train)
-            
+
             #reset counters
             train_loss = 0.
             train_batches = 0
             train_time = 0.
-            
+
             #run eval loop:
             evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, "EPOCH SUMMARY")
 
@@ -239,25 +239,25 @@ def main():
 
     # Parse Parameters
     args = parse_arguments()
-    
+
     # Multi-Node Stuff
     #decide who will be worker and who will be parameters server
     args['num_workers']=hvd.size()
     args['task_index']=hvd.rank()
     args["is_chief"]=True if args['task_index']==0 else False
-        
+
     #check how many validation steps we will do
     if "validation_max_steps" not in args or args["validation_max_steps"] <= 0:
         args["validation_max_steps"] = np.inf
-    
+
     # On-Node Stuff
     #common stuff
     os.environ["KMP_BLOCKTIME"] = "1"
     os.environ["KMP_SETTINGS"] = "1"
     os.environ["KMP_AFFINITY"]= "noverbose,granularity=fine,compact,1,0"
     ##loglevel
-    #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
-    
+    #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
     #arch-specific stuff
     if args['arch']=='hsw':
         num_inter_threads = 2
@@ -275,7 +275,7 @@ def main():
         num_intra_threads = int(getattr(p,'INTRA_OP_PARALLELISM_THREADS_FIELD_NUMBER'))
     else:
         raise ValueError('Please specify a valid architecture with arch (allowed values: hsw, knl, gpu)')
-    
+
     #set the rest
     os.environ['OMP_NUM_THREADS'] = str(num_intra_threads)
     sess_config=tf.ConfigProto(inter_op_parallelism_threads=num_inter_threads,
@@ -285,7 +285,7 @@ def main():
     sess_config.gpu_options.visible_device_list = str(hvd.local_rank())
     if args["is_chief"]:
         print("Using ",num_inter_threads,"-way task parallelism with ",num_intra_threads,"-way data parallelism.")
-    
+
     # Build Network and Functions
     if args["is_chief"]:
         print("Building model")
@@ -297,15 +297,15 @@ def main():
     auc_avg_fn = hvd.allreduce(tf.cast(auc_fn[0], tf.float32))
     if args["is_chief"]:
         print("Variables:",variables)
-    
+
     # Setup Iterators
     if args["is_chief"]:
         print("Setting up iterators")
-    
+
     #stats files, independent of training or validations
     with open(os.path.join(args['inputpath'], "stats.json"), 'r') as f:
         stats_meta = json.loads(f.read())
-    
+
     #training files
     trainfiles_bg = [os.path.join(args['inputpath'],"training","background",x) for x in os.listdir(os.path.join(args['inputpath'],"training","background")) if x and x.endswith('.root')]
     trainfiles_sg = [os.path.join(args['inputpath'],"training","signal",x) for x in os.listdir(os.path.join(args['inputpath'],"training","signal")) if x and x.endswith('.root')]
@@ -313,7 +313,7 @@ def main():
         trainfiles_meta = json.loads(f.read())
     #fuse with stats
     trainfiles_meta.update(stats_meta)
-        
+
     #validation files
     validationfiles_bg = [os.path.join(args['inputpath'],"validation","background",x) for x in os.listdir(os.path.join(args['inputpath'],"validation","background")) if x and x.endswith('.root')]
     validationfiles_sg = [os.path.join(args['inputpath'],"validation","signal",x) for x in os.listdir(os.path.join(args['inputpath'],"validation","signal")) if x and x.endswith('.root')]
@@ -321,12 +321,12 @@ def main():
         validationfiles_meta = json.loads(f.read())
     #fuse with stats
     validationfiles_meta.update(stats_meta)
-    
+
     #create tensorflow datasets
     #use common seed so that each node has the same order and it can be sharded appropriately
     shuffle_seed_bg = 12345
     shuffle_seed_sg = 67890
-    
+
     #training
     root_train_gen = utils.root_generator(args['num_points'], trainfiles_meta, shuffle=True, blocksize=10)
     dataset_train_bg = tf.data.Dataset.from_tensor_slices(trainfiles_bg)
@@ -354,7 +354,7 @@ def main():
     iterator_train = dataset_train.make_initializable_iterator()
     iterator_train_handle_string = iterator_train.string_handle()
     iterator_train_init_op = iterator_train.make_initializer(dataset_train)
-    
+
     #validation
     root_validation_gen = utils.root_generator(args['num_points'], validationfiles_meta, shuffle=False, blocksize=10)
     dataset_validation_bg = tf.data.Dataset.from_tensor_slices(validationfiles_bg)
@@ -382,13 +382,13 @@ def main():
     iterator_validation = dataset_validation.make_initializable_iterator()
     iterator_validation_handle_string = iterator_validation.string_handle()
     iterator_validation_init_op = iterator_validation.make_initializer(dataset_validation)
-    
+
     ##Determine stopping point, i.e. compute last_step:
     args["steps_per_epoch"] = args["trainsamples"] // (args["train_batch_size"] * args["num_workers"])
     args["last_step"] = args["steps_per_epoch"] * args["num_epochs"]
     if args["is_chief"]:
         print("Stopping after %d global steps, doing %d steps per epoch"%(args["last_step"],args["steps_per_epoch"]))
-        
+
         #set up file infrastructure
         if not os.path.isdir(args['logpath']):
             print("Creating log directory ",args['logpath'])
@@ -398,20 +398,20 @@ def main():
             os.makedirs(args['modelpath'])
         if not os.path.isdir(args['inputpath']) and not args['dummy_data']:
             raise ValueError("Please specify a valid path with input files in hdf5 format")
-    
+
         # Train Model
         #determining which model to load:
         metafilelist = [args['modelpath']+'/'+x for x in os.listdir(args['modelpath']) if x.endswith('.meta')]
         if not metafilelist:
             #no model found, restart from scratch
             args['restart']=True
-    
+
     #a hook that will stop training at a certain number of steps
     hooks=[tf.train.StopAtStepHook(last_step=args["last_step"])]
-            
+
     #global step that either gets updated after any node processes a batch (async) or when all nodes process a batch for a given iteration (sync)
     global_step = tf.train.get_or_create_global_step()
-    
+
     #setup the optimizers
     #learning rate
     if isinstance(args['learning_rate'],float):
@@ -431,16 +431,16 @@ def main():
         raise ValueError('Only ADAM is supported as optimizer')
     #finalize opt args
     opt = args['opt_func'](**args['opt_args'])
-                
+
     #only sync update supported
     opt = hvd.DistributedOptimizer(opt)
-    
+
     #broadcasting model
     init_bcast = hvd.broadcast_global_variables(0)
-                
+
     #create train step handle
     train_step = opt.minimize(loss_fn, global_step=global_step)
-                
+
     #creating summary
     if args['create_summary']:
         if args["is_chief"]:
@@ -448,44 +448,44 @@ def main():
             train_summary = tf.summary.merge([summary_loss])
             hooks.append(tf.train.StepCounterHook(every_n_steps=100,output_dir=args['logpath']))
             hooks.append(tf.train.SummarySaverHook(save_steps=100,output_dir=args['logpath'],summary_op=train_summary))
-                
+
     # Add an op to initialize the variables.
     init_global_op = tf.global_variables_initializer()
     init_local_op = tf.local_variables_initializer()
-    
+
     #checkpointing hook
     if args["is_chief"]:
         checkpoint_save_freq = np.min([args["steps_per_epoch"], 500])
         model_saver = tf.train.Saver(max_to_keep = 1000)
         hooks.append(tf.train.CheckpointSaverHook(checkpoint_dir=args['modelpath'], save_steps=checkpoint_save_freq, saver=model_saver))
-    
+
     #print parameters
     if args["is_chief"]:
         for k,v in args.items():
             print("{k}: {v}".format(k=k,v=v))
-        
+
         #print start command
         print("Starting training using "+args['optimizer']+" optimizer")
-            
+
     with tf.train.MonitoredTrainingSession(config=sess_config, hooks=hooks) as sess:
-        
+
         #initialize variables
         sess.run([init_global_op, init_local_op])
-            
+
         #init iterator handle
         iterator_train_handle, iterator_validation_handle = sess.run([iterator_train_handle_string, iterator_validation_handle_string])
-        
+
         #restore weights belonging to graph
         if args["is_chief"] and not args['restart']:
             utils.load_model(sess, model_saver, args['modelpath'])
-            
+
         #broadcast model
         sess.run(init_bcast)
-        
+
         #feed dicts
-        feed_dict_train={variables['iterator_handle_']: iterator_train_handle, variables['keep_prob_']: args['dropout_p']}
+        feed_dict_train={variables['iterator_handle_']: iterator_train_handle, variables['keep_prob_']: args['dropout_keep_p']}
         feed_dict_validation={variables['iterator_handle_']: iterator_validation_handle, variables['keep_prob_']: 1.0}
-        
+
         #ops dict
         ops = {"train_step" : train_step,
                 "loss_eval": loss_avg_fn,
@@ -495,13 +495,13 @@ def main():
                 "auc_update": auc_fn[1],
                 "auc_eval": auc_avg_fn
                 }
-                
+
         #determine if we need a summary
         if args['create_summary'] and args["is_chief"]:
             ops["train_summary"] = train_summary
         else:
             ops["train_summary"] = None
-        
+
         #do the training loop
         total_time = time.time()
         train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterator_validation_init_op, feed_dict_validation)

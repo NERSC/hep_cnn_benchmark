@@ -3,7 +3,7 @@
 #SBATCH -A dasrepo
 #SBATCH -C knl
 #SBATCH -t 4:00:00
-#SBATCH -J hep_inference_tf
+#SBATCH -J hep_inference_point
 
 #*** License Agreement ***
 #
@@ -49,22 +49,27 @@
 
 
 # Environment
-module load tensorflow/intel-1.8.0-py36
-export PYTHONPATH=$PWD:$PYTHONPATH
+module load python/3.6-anaconda-4.4
+module load root
+source activate thorstendl-cori-2.7
+export PYTHONPATH=/usr/common/software/rootpy:${PYTHONPATH}
+export TF_CPP_MIN_LOG_LEVEL=2
 
 #prepare run directory
-configfile=cori_knl_224_adam.json
+configfile=cori_knl_point_adam.json
 basedir=/global/cscratch1/sd/tkurth/atlas_dl/benchmark_runs
-#rundir=${basedir}/run_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
-#rundir=${basedir}/run_nnodes1_j14367078
-#rundir=${basedir}/run_small_nnodes1_j14415814
-rundir=${basedir}/run_nnodes2_j14412531
+#rundir=${basedir}/run_point_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
+#rundir=${basedir}/run_point_nnodes1_j14797110
+#rundir=${basedir}/run_point_nnodes1_j14835911
+rundir=${basedir}/run_point_nnodes1_j15112191
+#rundir=${basedir}/run_point_nnodes1_j14569065
+#rundir=${basedir}/run_point_nnodes1_j14607274
 
 #create directory
 mkdir -p ${rundir}
 
 #stage in scripts
-cp ../scripts/hep_classifier_tf_inference.py ${rundir}/
+cp ../scripts/hep_classifier_point_tf_inference.py ${rundir}/
 cp -r ../scripts/networks ${rundir}/
 cp ../configs/${configfile} ${rundir}/
 
@@ -74,5 +79,6 @@ cd ${rundir}
 # Run
 set -x
 srun -N ${SLURM_NNODES} -n ${SLURM_NNODES} -c 272 -u \
-    python hep_classifier_tf_inference.py \
-    --config=${configfile} |& tee out.fp32.lag0.${SLURM_JOBID}
+    python hep_classifier_point_tf_inference.py \
+    --config=${configfile} \
+    --num_tasks=${SLURM_NNODES} |& tee out.fp32.point.lag0.${SLURM_JOBID}

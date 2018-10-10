@@ -147,7 +147,7 @@ def evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_valida
             validation_loss += tmp_loss
             validation_batches += 1
             
-        except:
+        except tf.errors.OutOfRangeError:
             break
     
     #report the results
@@ -165,15 +165,17 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
     epochs_completed = 0
     
     #losses
-    train_loss=0.
-    train_batches=0
-    total_batches=0
-    train_time=0
+    train_loss = 0.
+    train_lr = 0.
+    train_batches = 0
+    total_batches = 0
+    train_time = 0
     
     #extract ops
     train_step = ops["train_step"]
     global_step = ops["global_step"]
     loss_eval = ops["loss_eval"]
+    lr_eval = ops["learning_rate"]
     acc_update = ops["acc_update"]
     acc_eval = ops["acc_eval"]
     auc_update = ops["auc_update"]
@@ -191,14 +193,15 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
         try:
             start_time = time.time()
             if args['create_summary']:
-                _, gstep, summary, tmp_loss = sess.run([train_step, global_step, ops["train_summary"], loss_eval], feed_dict=feed_dict_train)
+                _, gstep, summary, tmp_loss, tmp_lr = sess.run([train_step, global_step, ops["train_summary"], loss_eval, lr_eval], feed_dict=feed_dict_train)
             else:
-                _, gstep, tmp_loss = sess.run([train_step, global_step, loss_eval], feed_dict=feed_dict_train)        
+                _, gstep, tmp_loss, tmp_lr = sess.run([train_step, global_step, loss_eval, lr_eval], feed_dict=feed_dict_train) 
             end_time = time.time()
             train_time += end_time-start_time
             
             #increment train loss and batch number
             train_loss += tmp_loss
+            train_lr += tmp_lr
             total_batches += 1
             train_batches += 1
             
@@ -206,17 +209,19 @@ def train_loop(sess, ops, args, iterator_train_init_op, feed_dict_train, iterato
             if gstep%args['display_interval']==0:
                 if args["is_chief"]:
                     tstamp = time.time()
-                    print("%.2f TRAINING REPORT: step %d (%d), average loss %.6f (%.3f sec/batch)"%(tstamp, gstep, args["last_step"],
+                    print("%.2f TRAINING REPORT: step %d (%d), average loss %.6f (%.3f sec/batch), average learning rate %.6f"%(tstamp, gstep, args["last_step"],
                                                                                                         train_loss/float(train_batches),
-                                                                                                        train_time/float(train_batches)))
+                                                                                                        train_time/float(train_batches),
+                                                                                                        train_lr/float(train_batches)))
                 train_batches = 0
                 train_loss = 0.
+                train_lr = 0.
                 train_time = 0.
                 
             if gstep%args['validation_interval']==0:
                 evaluate_loop(sess, ops, args, iterator_validation_init_op, feed_dict_validation, "REPORT")
     
-        except:
+        except tf.errors.OutOfRangeError:
             #get global step:
             gstep = sess.run(global_step)
 
@@ -389,11 +394,16 @@ def main():
     if isinstance(args['learning_rate'],float):
         args['opt_args'] = {"learning_rate": args['learning_rate']}
     elif isinstance(args['learning_rate'],dict):
-        schedule = sorted(args['learning_rate'].items(), key=lambda x: int(x[0]))
+        schedule = sorted(args['learning_rate']['learning_rate_params'].items(), key=lambda x: int(x[0]))
         boundaries = [int(x[0]) for x in schedule]
         rates = [float(x[1]) for x in schedule]
         rates = rates[:1] + rates
-        args['opt_args'] = {"learning_rate": tf.train.piecewise_constant(tf.cast(global_step, tf.int32), boundaries, rates)}
+        lrfunc=None
+        if args['learning_rate']["mode"] == "piecewise":
+            lrfunc = tf.train.piecewise_constant(tf.cast(global_step, tf.int32), boundaries, rates)
+        elif args['learning_rate']["mode"] == "polynomial":
+             lrfunc = tf.train.polynomial_decay(rates[0], tf.cast(global_step, tf.int32), boundaries[-1], rates[-1], args['learning_rate']["power"])
+        args['opt_args'] = {"learning_rate": lrfunc}
     else:
         raise ValueError("Error, learning rate needs to be either a float or a dictionary.")
     #solver
@@ -462,6 +472,7 @@ def main():
         ops = {"train_step" : train_step,
                 "loss_eval": loss_avg_fn,
                 "global_step": global_step,
+                "learning_rate": args['opt_args']["learning_rate"],
                 "acc_update": accuracy_fn[1],
                 "acc_eval": accuracy_avg_fn,
                 "auc_update": auc_fn[1],

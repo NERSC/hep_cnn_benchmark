@@ -4,6 +4,8 @@ import h5py as h5
 import itertools
 import numpy as np
 from sklearn import metrics
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 try:
     from rootpy.io import root_open

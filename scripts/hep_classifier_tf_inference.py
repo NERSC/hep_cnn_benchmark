@@ -38,7 +38,7 @@
 # royalty-free perpetual license to install, use, modify, prepare derivative
 # works, incorporate into other computer software, distribute, and sublicense
 # such enhancements or derivative works thereof, in binary and source code form.
-#---------------------------------------------------------------      
+#---------------------------------------------------------------
 
 # Compatibility
 from __future__ import print_function
@@ -66,68 +66,67 @@ import tensorflow as tf
 import tensorflow.contrib.keras as tfk
 
 #housekeeping
-import networks.binary_classifier_tf as bc
+import networks.utils as utils
+import networks.cnn.binary_classifier_tf as bc
 
-#roc stuff
-from .utils import plot_roc_curve, load_model
 
 
 #evaluation loop
 def evaluate_loop(sess, ops, args, iterator_test_init_op, feed_dict_test, prefix):
-    
+
     #reinit the test iterator
     sess.run(iterator_test_init_op, feed_dict=feed_dict_test)
-    
+
     #compute test loss:
     #reset variables
     test_loss = 0.
     test_batches = 0
-    
+
     #initialize lists
     predlist = []
     labellist = []
     weightlist = []
     psrlist = []
-    
+
     #iterate over test set
     while test_batches < args["test_max_steps"]:
-        
+
         try:
             #compute loss
             pred, labels, weights, psr, tmp_loss, _, _ = sess.run([ops["prediction_eval"],
                                                                      ops["label_eval"],
                                                                      ops["weight_eval"],
                                                                      ops["psr_eval"],
-                                                                     ops["loss_eval"], 
-                                                                     ops["acc_update"], 
-                                                                     ops["auc_update"]], 
+                                                                     ops["loss_eval"],
+                                                                     ops["acc_update"],
+                                                                     ops["auc_update"]],
                                                                      feed_dict=feed_dict_test)
-            
+
             predlist.append(pred[:,1])
             labellist.append(labels)
             weightlist.append(weights)
             psrlist.append(psr)
-    
+
             #add loss
             test_loss += tmp_loss
             test_batches += 1
-            
+
         except:
             break
-    
+
     #report the results
     test_accuracy, test_auc = sess.run([ops["acc_eval"], ops["auc_eval"]])
     tstamp = time.time()
     print("%.2f EVALUATION %s: average loss %.6f"%(tstamp, prefix, test_loss/float(test_batches)))
     print("%.2f EVALUATION %s: average accu %.6f"%(tstamp, prefix, test_accuracy))
     print("%.2f EVALUATION %s: average auc %.6f"%(tstamp, prefix, test_auc))
-    
+
     #do the ROC curve
     preds = np.concatenate(predlist, axis=0)
     labels = np.concatenate(labellist, axis=0)
     weights = np.concatenate(weightlist, axis=0)
-    psrs = np.concatenate(psr, axis=0)
-    plot_roc_curve(preds, labels, weights, psrs, args["plotpath"])
+    psrs = np.concatenate(psrlist, axis=0)
+    utils.plot_roc_curve(preds, labels, weights, psrs, args["plotpath"])
 
 
 def parse_arguments():
@@ -135,30 +134,30 @@ def parse_arguments():
     parser.add_argument("--config", type=str, help="specify a config file in json format")
     parser.add_argument("--checkpoint_id", type=int, default=-1, help="select which checkpoint to load")
     pargs = parser.parse_args()
-    
+
     #load the json:
     with open(pargs.config,"r") as f:
         args = json.load(f)
 
     args["checkpoint_id"] = pargs.checkpoint_id
-    
+
     #modify the activations
     if args['conv_params']['activation'] == 'ReLU':
         args['conv_params']['activation'] = tf.nn.relu
     else:
         raise ValueError('Only ReLU is supported as activation')
-        
+
     #modify the initializers
     if args['conv_params']['initializer'] == 'HE':
         args['conv_params']['initializer'] = tfk.initializers.he_normal()
     else:
         raise ValueError('Only HE is supported as initializer')
-    
+
     #now, see if all the paths are there
     args['logpath'] = args['outputpath']+'/logs'
     args['modelpath'] = args['outputpath']+'/models'
     args['plotpath'] = args['outputpath']+'/plots'
-    
+
     if not os.path.isdir(args['logpath']):
         print("Creating log directory ",args['logpath'])
         os.makedirs(args['logpath'])
@@ -170,30 +169,30 @@ def parse_arguments():
     if not os.path.isdir(args['plotpath']):
         print("Creating plot directory ",args['plotpath'])
         os.makedirs(args['plotpath'])
-    
+
     #precision:
     args['precision'] = tf.float32
-    
+
     return args
 
 
 def main():
     # Parse Parameters
     args = parse_arguments()
-        
+
     #general stuff
     args["test_batch_size_per_node"]=int(args["test_batch_size"])
     args['train_batch_size_per_node']=args["test_batch_size_per_node"]
-    
+
     #check how many validation steps we will do
     if "test_max_steps" not in args or args["test_max_steps"] <= 0:
         args["test_max_steps"] = np.inf
-    
+
     # On-Node Stuff
     os.environ["KMP_BLOCKTIME"] = "1"
     os.environ["KMP_SETTINGS"] = "1"
     os.environ["KMP_AFFINITY"]= "granularity=fine,compact,1,0"
-    
+
     #arch-specific stuff
     if args['arch']=='hsw':
         num_inter_threads = 2
@@ -208,38 +207,36 @@ def main():
         num_intra_threads = int(getattr(p,'INTRA_OP_PARALLELISM_THREADS_FIELD_NUMBER'))
     else:
         raise ValueError('Please specify a valid architecture with arch (allowed values: hsw, knl, gpu)')
-    
+
     #set the rest
     os.environ['OMP_NUM_THREADS'] = str(num_intra_threads)
     sess_config=tf.ConfigProto(inter_op_parallelism_threads=num_inter_threads,
                                intra_op_parallelism_threads=num_intra_threads,
                                log_device_placement=False,
                                allow_soft_placement=True)
-    
+
     print("Using ",num_inter_threads,"-way task parallelism with ",num_intra_threads,"-way data parallelism.")
-    
-    
+
+
     # Build Network and Functions
-    print("Building model") 
-            
+    print("Building model")
+
     variables, network = bc.build_cnn_model(args)
     variables, pred_fn, loss_fn, accuracy_fn, auc_fn = bc.build_functions(args,variables,network)
 
     print("Variables:",variables)
-    print("Network:",network)    
-    
+    print("Network:",network)
+
     # Setup Iterators
     print("Setting up iterators")
-        
+
     #test files
     testfiles = [args['inputpath']+'/'+x for x in os.listdir(args['inputpath']) if 'test' in x and (x.endswith('.h5') or x.endswith('.hdf5'))]
-    testset = bc.DataSet(testfiles, 1,0, split_filelist=False, split_file=False, data_format=args["conv_params"]['data_format'], shuffle=False)
-        
+
     #create tensorflow datasets
     #test
     h5_test_gen = utils.hdf5_generator(shuffle=False, data_format=args["conv_params"]['data_format'])
     dataset_test = tf.data.Dataset.from_tensor_slices(testfiles)
-    dataset_test = dataset_test.shuffle(len(testfiles), seed=shuffle_seed)
     dataset_test = dataset_test.interleave(lambda filename: tf.data.Dataset.from_generator(h5_test_gen, \
                                                                                     output_types = (tf.float32, tf.int32, tf.float32, tf.float32, tf.float32), \
                                                                                     output_shapes = (args['input_shape'], (), (), (), ()), \
@@ -251,29 +248,29 @@ def main():
     #dataset_test = dataset_test.map(lambda im,lb,wg,nw,ps: (im, lb, wg, nw, ps), num_parallel_calls=2)
     iterator_test = dataset_test.make_initializable_iterator()
     iterator_test_handle_string = iterator_test.string_handle()
-    iterator_test_init_op = iterator_test.make_initializer(dataset_test) 
-            
+    iterator_test_init_op = iterator_test.make_initializer(dataset_test)
+
     # Add an op to initialize the variables.
     init_global_op = tf.global_variables_initializer()
     init_local_op = tf.local_variables_initializer()
-            
+
     #saver class:
     model_saver = tf.train.Saver()
-            
+
     with tf.Session(config=sess_config) as sess:
-        
+
         #initialize variables
         sess.run([init_global_op, init_local_op])
-                    
+
         #init iterator handle
         iterator_test_handle = sess.run(iterator_test_handle_string)
-                    
+
         #restore weights belonging to graph
         utils.load_model(sess, model_saver, args['modelpath'])
-                    
+
         #feed dicts
         feed_dict_test={variables['iterator_handle_']: iterator_test_handle, variables['keep_prob_']: 1.}
-                    
+
         #ops dict
         ops = {"loss_eval": loss_fn,
                "acc_update": accuracy_fn[1],
@@ -285,7 +282,7 @@ def main():
                "weight_eval": variables['weights_'],
                "psr_eval": variables['psr_']
             }
-        
+
         #do the evaluation loop
         evaluate_loop(sess, ops, args, iterator_test_init_op, feed_dict_test, "SUMMARY")
 

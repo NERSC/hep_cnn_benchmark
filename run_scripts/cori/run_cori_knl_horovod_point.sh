@@ -58,9 +58,12 @@ export TF_CPP_MIN_LOG_LEVEL=2
 #prepare run directory
 configfile=cori_knl_point_adam.json
 basedir=/global/cscratch1/sd/tkurth/atlas_dl/benchmark_runs
-rundir=${basedir}/run_point_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
+#rundir=${basedir}/run_point_nnodes${SLURM_NNODES}_j${SLURM_JOBID}
+rundir=${basedir}/run_point_nnodes1_j15112191
+#rundir=${basedir}/run_point_nnodes1_j14835911
 #rundir=${basedir}/run_point_nnodes1_j14569065
 #rundir=${basedir}/run_point_nnodes1_j14607274
+#rundir=${basedir}/run_point_nnodes1_j14797110
 
 #create directory
 mkdir -p ${rundir}
